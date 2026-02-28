@@ -123,11 +123,11 @@ Web 应用采用四栏式布局设计：
 
 ### 方式一：使用 Docker（推荐）
 
-直接使用 GitHub Actions 自动构建的镜像，无需本地构建：
+直接使用 GitHub Actions 自动构建并推送到 Docker Hub 的镜像，无需本地构建：
 
 ```bash
 # 拉取最新镜像
-docker pull ghcr.io/assast/outlookemail:latest
+docker pull guangshanshui/outlook-email-plus:latest
 
 # 运行容器
 docker run -d \
@@ -136,7 +136,7 @@ docker run -d \
   -v $(pwd)/data:/app/data \
   -e LOGIN_PASSWORD=admin123 \
   -e SECRET_KEY=your-secret-key-here \
-  ghcr.io/assast/outlookemail:latest
+  guangshanshui/outlook-email-plus:latest
 
 # 查看日志
 docker logs -f outlook-mail-reader
@@ -156,8 +156,8 @@ docker rm outlook-mail-reader
 
 ```bash
 # 克隆仓库
-git clone https://github.com/assast/outlookEmail.git
-cd outlookEmail
+git clone https://github.com/ZeroPointSix/outlookEmailPlus.git
+cd outlookEmailPlus
 
 # 安装依赖
 pip install -r requirements.txt
@@ -182,7 +182,7 @@ version: '3.8'
 
 services:
   outlook-mail-reader:
-    image: ghcr.io/assast/outlookemail:latest
+    image: guangshanshui/outlook-email-plus:latest
     container_name: outlook-mail-reader
     ports:
       - "5000:5000"
@@ -307,7 +307,7 @@ version: '3.8'
 
 services:
   outlook-mail-reader:
-    image: ghcr.io/assast/outlookemail:latest
+    image: guangshanshui/outlook-email-plus:latest
     container_name: outlook-mail-reader
     ports:
       - "5000:5000"
@@ -336,18 +336,18 @@ docker-compose down
 
 ### 镜像说明
 
-项目使用 GitHub Actions 自动构建并推送 Docker 镜像到 `ghcr.io/assast/outlookemail:latest`。
+项目使用 GitHub Actions 自动构建并推送 Docker 镜像到 Docker Hub：`guangshanshui/outlook-email-plus:latest`。
 
 #### 可用镜像标签
 
-- `ghcr.io/assast/outlookemail:latest` - 最新的主分支构建（推荐）
-- `ghcr.io/assast/outlookemail:main` - main 分支最新版本
+- `guangshanshui/outlook-email-plus:latest` - 默认分支最新构建（推荐）
+- `guangshanshui/outlook-email-plus:main` - main 分支最新版本（如默认分支为 main）
 
 #### 更新镜像
 
 ```bash
 # 拉取最新镜像
-docker pull ghcr.io/assast/outlookemail:latest
+docker pull guangshanshui/outlook-email-plus:latest
 
 # 重启容器
 docker-compose down
@@ -902,7 +902,7 @@ docker logs outlook-mail-reader
 lsof -i :5000
 
 # 4. 重新拉取镜像并重启
-docker pull ghcr.io/assast/outlookemail:latest
+docker pull guangshanshui/outlook-email-plus:latest
 docker-compose down
 docker-compose up -d
 ```
@@ -935,7 +935,7 @@ docker exec outlook-mail-reader python -c "from web_outlook_app import init_db; 
 docker-compose restart
 
 # 方法 3：使用最新镜像
-docker pull ghcr.io/assast/outlookemail:latest
+docker pull guangshanshui/outlook-email-plus:latest
 docker-compose down
 docker-compose up -d
 ```
@@ -1047,7 +1047,7 @@ docker-compose up -d
 
 ```bash
 # 拉取最新镜像
-docker pull ghcr.io/assast/outlookemail:latest
+docker pull guangshanshui/outlook-email-plus:latest
 
 # 重启服务
 docker-compose down
@@ -1062,14 +1062,14 @@ docker run -d \
   -v $(pwd)/data:/app/data \
   -e LOGIN_PASSWORD=admin123 \
   -e SECRET_KEY=your-secret-key-here \
-  ghcr.io/assast/outlookemail:latest
+  guangshanshui/outlook-email-plus:latest
 ```
 
 ### 查看版本信息
 
 ```bash
 # 查看镜像信息
-docker images ghcr.io/assast/outlookemail
+docker images guangshanshui/outlook-email-plus
 
 # 查看容器日志
 docker logs outlook-mail-reader
@@ -1365,8 +1365,8 @@ A: 请按以下步骤排查：
 
 ```bash
 # 克隆仓库
-git clone https://github.com/assast/outlookEmail.git
-cd outlookEmail
+git clone https://github.com/ZeroPointSix/outlookEmailPlus.git
+cd outlookEmailPlus
 
 # 创建虚拟环境
 python -m venv venv
@@ -1412,7 +1412,7 @@ SOFTWARE.
 
 ## 📞 联系方式
 
-- GitHub Issues: [https://github.com/assast/outlookEmail/issues](https://github.com/assast/outlookEmail/issues)
+- GitHub Issues: [https://github.com/ZeroPointSix/outlookEmailPlus/issues](https://github.com/ZeroPointSix/outlookEmailPlus/issues)
 - Email: 通过 GitHub Issues 联系
 
 ---
@@ -1615,7 +1615,7 @@ SOFTWARE.
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=assast/outlookEmail&type=Date)](https://star-history.com/#assast/outlookEmail&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=ZeroPointSix/outlookEmailPlus&type=Date)](https://star-history.com/#ZeroPointSix/outlookEmailPlus&Date)
 
 ---
 
