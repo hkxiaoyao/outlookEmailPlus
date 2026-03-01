@@ -1,0 +1,4 @@
+@echo off
+set SECRET_KEY=f0160fcbedbae5d00040c68b137caffa9ff467351220484380fdd449e6c4fbe7
+set LOGIN_PASSWORD=admin123
+python web_outlook_app.py
