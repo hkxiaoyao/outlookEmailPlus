@@ -213,8 +213,8 @@ def api_update_settings() -> Any:
     if "telegram_poll_interval" in data:
         try:
             tg_interval = int(data["telegram_poll_interval"])
-            if tg_interval < 60 or tg_interval > 3600:
-                errors.append("Telegram 轮询间隔必须在 60-3600 秒之间")
+            if tg_interval < 10 or tg_interval > 86400:
+                errors.append("Telegram 轮询间隔必须在 10-86400 秒之间")
             elif settings_repo.set_setting("telegram_poll_interval", str(tg_interval)):
                 updated.append("Telegram 轮询间隔")
                 scheduler_reload_needed = True

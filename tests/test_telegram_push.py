@@ -712,12 +712,12 @@ class TestTelegramSettingsAPI(unittest.TestCase):
             self.assertEqual(get_setting("telegram_poll_interval"), "300")
 
     def test_t29_invalid_interval_returns_400(self):
-        """T-29：telegram_poll_interval 低于最小值 60 → 400 错误"""
+        """T-29：telegram_poll_interval 低于最小值 10 → 400 错误"""
         client = self.app.test_client()
         _login(client)
         resp = client.put(
             "/api/settings",
-            json={"telegram_poll_interval": 30},  # 低于最小值 60
+            json={"telegram_poll_interval": 5},  # 低于最小值 10
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 400)

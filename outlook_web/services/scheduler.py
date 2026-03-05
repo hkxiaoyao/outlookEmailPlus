@@ -65,7 +65,7 @@ def _get_telegram_interval(app) -> int:
     try:
         with app.app_context():
             val = settings_repo.get_setting("telegram_poll_interval", "600")
-        return max(60, int(val or "600"))
+        return max(10, int(val or "600"))
     except Exception:
         return 600
 
