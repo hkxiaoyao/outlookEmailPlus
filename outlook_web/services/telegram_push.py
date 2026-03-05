@@ -101,7 +101,10 @@ def _send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
 
 
 def _fetch_new_emails_imap(account: dict, since: str) -> List[dict]:
-    """通过 IMAP 获取 received_at > since 的邮件，最多返回 50 封。"""
+    """通过 IMAP 获取 received_at > since 的邮件，最多返回 50 封。
+
+    两步策略：先用 INTERNALDATE 快速过滤，再对命中的邮件下载正文。
+    """
     import email as email_lib
     import email.header
     import imaplib
@@ -128,7 +131,44 @@ def _fetch_new_emails_imap(account: dict, since: str) -> List[dict]:
         _, data = conn.search(None, f'(SINCE "{since_date_str}")')
         msg_ids = data[0].split() if data[0] else []
 
-        for mid in msg_ids[-MAX_EMAILS_PER_FETCH:]:
+        if not msg_ids:
+            return results
+
+        # 第一步：批量获取 INTERNALDATE 快速过滤
+        candidate_ids = msg_ids[-MAX_EMAILS_PER_FETCH:]
+        id_range = b",".join(candidate_ids)
+        _, date_data = conn.fetch(id_range, "(INTERNALDATE)")
+
+        import re
+        date_pattern = re.compile(rb'INTERNALDATE "([^"]+)"')
+        new_msg_ids = []
+
+        for item in date_data:
+            if not isinstance(item, tuple):
+                continue
+            header_line = item[0] if isinstance(item[0], bytes) else b""
+            mid_match = re.match(rb"(\d+)", header_line)
+            date_match = date_pattern.search(header_line)
+            if not mid_match or not date_match:
+                continue
+
+            mid = mid_match.group(1)
+            idate_str = date_match.group(1).decode("ascii", errors="replace")
+            try:
+                from imaplib import Internaldate2tuple
+                import calendar
+                tt = Internaldate2tuple(b'"' + date_match.group(1) + b'"')
+                if tt:
+                    ts = calendar.timegm(tt)
+                    idate_iso = dt.utcfromtimestamp(ts).strftime("%Y-%m-%dT%H:%M:%S")
+                    if idate_iso <= since:
+                        continue
+            except Exception:
+                pass  # 解析失败时保留，由后续 RFC822 过滤
+            new_msg_ids.append(mid)
+
+        # 第二步：仅对候选邮件下载 RFC822
+        for mid in new_msg_ids[-MAX_EMAILS_PER_FETCH:]:
             try:
                 _, msg_data = conn.fetch(mid, "(RFC822)")
                 raw = msg_data[0][1]
