@@ -4,8 +4,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)](https://hub.docker.com/r/guangshanshui/outlook-email-plus)
-[![GHCR](https://img.shields.io/badge/GHCR-ready-blue.svg)](https://github.com/ZeroPointSix/outlookEmailPlus/pkgs/container/outlook-email-plus)
+[![Docker Hub](https://img.shields.io/badge/DockerHub-optional-lightgrey.svg)](https://hub.docker.com/r/guangshanshui/outlook-email-plus)
+[![GHCR](https://img.shields.io/badge/GHCR-default-blue.svg)](https://github.com/ZeroPointSix/outlookEmailPlus/pkgs/container/outlook-email-plus)
 
 ## ✨ 核心特性
 
@@ -53,20 +53,30 @@
 
 ```bash
 # 拉取镜像（默认推荐 GHCR：由 GitHub Actions 自动发布）
-docker pull ghcr.io/<github_owner>/outlook-email-plus:latest
-# 例如：ghcr.io/zeropointsix/outlook-email-plus:latest
+# 当前仓库示例：
+docker pull ghcr.io/zeropointsix/outlook-email-plus:latest
+# 如果你是 fork 后自行发布，请把 zeropointsix 替换成你自己的 GitHub owner
 
 # 或 Docker Hub（需要仓库配置 DOCKERHUB_USERNAME / DOCKERHUB_TOKEN Secrets 才会自动发布）
 # docker pull guangshanshui/outlook-email-plus:latest
 
-# 运行容器
+# 运行容器（Linux/macOS）
 docker run -d \
   --name outlook-email-plus \
   -p 5000:5000 \
   -v $(pwd)/data:/app/data \
   -e LOGIN_PASSWORD=admin123 \
   -e SECRET_KEY=your-secret-key-here \
-  ghcr.io/<github_owner>/outlook-email-plus:latest
+  ghcr.io/zeropointsix/outlook-email-plus:latest
+
+# PowerShell 写法
+docker run -d `
+  --name outlook-email-plus `
+  -p 5000:5000 `
+  -v ${PWD}/data:/app/data `
+  -e LOGIN_PASSWORD=admin123 `
+  -e SECRET_KEY=your-secret-key-here `
+  ghcr.io/zeropointsix/outlook-email-plus:latest
 
 # 访问应用
 # 浏览器打开 http://localhost:5000
@@ -79,7 +89,7 @@ version: '3.8'
 
 services:
   outlook-email-plus:
-    image: ghcr.io/<github_owner>/outlook-email-plus:latest
+    image: ghcr.io/zeropointsix/outlook-email-plus:latest
     container_name: outlook-email-plus
     ports:
       - "5000:5000"
@@ -93,25 +103,39 @@ services:
 ```
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 本地运行
+
+先创建虚拟环境并安装依赖：
 
 ```bash
 # 克隆仓库
 git clone https://github.com/ZeroPointSix/outlookEmailPlus.git
 cd outlookEmailPlus
 
+# 创建虚拟环境
+python -m venv .venv
+
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+
+# macOS / Linux
+# source .venv/bin/activate
+
 # 安装依赖
 pip install -r requirements.txt
+```
 
-# 设置环境变量
-export LOGIN_PASSWORD=admin123
-export SECRET_KEY=your-secret-key-here
+推荐使用 `start.py` 启动。它会自动初始化 `.env`，并在 `SECRET_KEY` 还是占位符时自动生成真实密钥，避免直接运行 `web_outlook_app.py` 因缺少环境变量启动失败。
 
-# 运行应用
-python web_outlook_app.py
+```bash
+# Windows PowerShell
+python start.py
+
+# macOS / Linux（也可先手动 export 环境变量后直接运行 web_outlook_app.py）
+python start.py
 ```
 
 ## ⚙️ 配置说明
@@ -120,7 +144,7 @@ python web_outlook_app.py
 
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
-| `SECRET_KEY` | Session 密钥（必须设置） | 无 |
+| `SECRET_KEY` | Session 密钥；使用 `start.py` 时会自动初始化 | 无 |
 | `LOGIN_PASSWORD` | 登录密码 | `admin123` |
 | `PORT` | 应用端口 | `5000` |
 | `HOST` | 监听地址 | `0.0.0.0` |
@@ -214,12 +238,12 @@ outlookEmailPlus/
 ## 🔄 更新应用
 
 ```bash
-# 拉取最新镜像
-docker pull guangshanshui/outlook-email-plus:latest
+# 拉取最新镜像（GHCR）
+docker pull ghcr.io/zeropointsix/outlook-email-plus:latest
 
 # 重启容器
-docker-compose down
-docker-compose up -d
+docker compose down
+docker compose up -d
 ```
 
 ## ❓ 常见问题
@@ -232,6 +256,9 @@ A: 登录后点击「⚙️ 设置」在线修改，或通过环境变量 `LOGIN
 
 **Q: 数据存储在哪里？**
 A: SQLite 数据库位于 `data/outlook_accounts.db`，建议定期备份。
+
+**Q: 为什么直接运行 `python web_outlook_app.py` 会报 `SECRET_KEY` 错误？**
+A: 因为应用启动时会强制校验 `SECRET_KEY`。本项目本地推荐入口是 `python start.py`，它会自动复制 `.env.example` 并初始化 `SECRET_KEY`。
 
 **Q: 支持哪些邮件文件夹？**
 A: 收件箱、垃圾邮件、已删除邮件。
