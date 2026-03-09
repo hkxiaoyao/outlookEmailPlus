@@ -286,7 +286,9 @@ class MultiMailboxSupportTests(unittest.TestCase):
         # 成功刷新时应写回滚动更新后的 refresh_token（加密存储）
         conn = self.module.create_sqlite_connection()
         try:
-            row = conn.execute("SELECT refresh_token, last_refresh_at FROM accounts WHERE email = ?", (outlook_email,)).fetchone()
+            row = conn.execute(
+                "SELECT refresh_token, last_refresh_at FROM accounts WHERE email = ?", (outlook_email,)
+            ).fetchone()
             self.assertIsNotNone(row)
             self.assertEqual(self.module.decrypt_data(row["refresh_token"]), "rt_new_" + unique)
             self.assertTrue(row["last_refresh_at"])

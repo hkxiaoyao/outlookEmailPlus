@@ -191,11 +191,7 @@ def stream_refresh_all_accounts(
                 )
 
                 if success:
-                    if (
-                        isinstance(new_refresh_token, str)
-                        and new_refresh_token.strip()
-                        and new_refresh_token != refresh_token
-                    ):
+                    if isinstance(new_refresh_token, str) and new_refresh_token.strip() and new_refresh_token != refresh_token:
                         conn.execute(
                             """
                             UPDATE accounts
@@ -475,11 +471,7 @@ def stream_trigger_scheduled_refresh(
                 )
 
                 if success:
-                    if (
-                        isinstance(new_refresh_token, str)
-                        and new_refresh_token.strip()
-                        and new_refresh_token != refresh_token
-                    ):
+                    if isinstance(new_refresh_token, str) and new_refresh_token.strip() and new_refresh_token != refresh_token:
                         conn.execute(
                             """
                             UPDATE accounts
@@ -670,11 +662,7 @@ def refresh_failed_accounts(
 
             if success:
                 try:
-                    if (
-                        isinstance(new_refresh_token, str)
-                        and new_refresh_token.strip()
-                        and new_refresh_token != refresh_token
-                    ):
+                    if isinstance(new_refresh_token, str) and new_refresh_token.strip() and new_refresh_token != refresh_token:
                         db.execute(
                             """
                             UPDATE accounts

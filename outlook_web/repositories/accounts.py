@@ -342,9 +342,15 @@ def delete_account_by_email(email_addr: str) -> bool:
 def update_account_credentials(account_id: int, **fields) -> bool:
     """仅更新账号的凭据相关字段（用于覆盖导入场景），敏感字段自动加密。"""
     allowed = {
-        "password", "client_id", "refresh_token",
-        "imap_password", "imap_host", "imap_port",
-        "account_type", "provider", "group_id",
+        "password",
+        "client_id",
+        "refresh_token",
+        "imap_password",
+        "imap_host",
+        "imap_port",
+        "account_type",
+        "provider",
+        "group_id",
     }
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:

@@ -1,4 +1,5 @@
 """tests/test_export_enhanced_v2.py — FD-00006 导出 v2 增强测试"""
+
 import unittest
 
 from tests._import_app import clear_login_attempts, import_web_app_module
@@ -110,8 +111,22 @@ class TestExportEnhancedV2(unittest.TestCase):
             from outlook_web.controllers.accounts import _build_export_text
 
             accounts = [
-                {"email": "a@o.com", "password": "p", "client_id": "c", "refresh_token": "r", "account_type": "outlook", "provider": "outlook"},
-                {"email": "b@o.com", "password": "p", "client_id": "c", "refresh_token": "r", "account_type": "outlook", "provider": "outlook"},
+                {
+                    "email": "a@o.com",
+                    "password": "p",
+                    "client_id": "c",
+                    "refresh_token": "r",
+                    "account_type": "outlook",
+                    "provider": "outlook",
+                },
+                {
+                    "email": "b@o.com",
+                    "password": "p",
+                    "client_id": "c",
+                    "refresh_token": "r",
+                    "account_type": "outlook",
+                    "provider": "outlook",
+                },
                 {"email": "c@gmail.com", "imap_password": "ip", "account_type": "imap", "provider": "gmail"},
             ]
             temp_emails = [{"email": "t@gptmail.com"}]
@@ -127,7 +142,14 @@ class TestExportEnhancedV2(unittest.TestCase):
             from outlook_web.controllers.accounts import _build_export_text
 
             accounts = [
-                {"email": "a@o.com", "password": "p", "client_id": "c", "refresh_token": "r", "account_type": "outlook", "provider": "outlook"},
+                {
+                    "email": "a@o.com",
+                    "password": "p",
+                    "client_id": "c",
+                    "refresh_token": "r",
+                    "account_type": "outlook",
+                    "provider": "outlook",
+                },
             ]
             content = _build_export_text(accounts)
             self.assertTrue(content.endswith("\n"))

@@ -257,7 +257,9 @@ def api_update_settings() -> Any:
                     # FD-00007 / TDD-00007：调度器 Job 在后台线程运行，必须传入真实 Flask app 实例；
                     # 避免将 current_app(LocalProxy) 直接作为 job 参数，导致后续执行时报“Working outside of application context”。
                     app_obj = current_app._get_current_object()
-                    scheduler_service.configure_scheduler_jobs(scheduler, app_obj, graph_service.test_refresh_token_with_rotation)
+                    scheduler_service.configure_scheduler_jobs(
+                        scheduler, app_obj, graph_service.test_refresh_token_with_rotation
+                    )
                     scheduler_reloaded = True
                 else:
                     scheduler_reloaded = False

@@ -50,7 +50,10 @@ class ImportExportV2AutoTests(unittest.TestCase):
             row = conn.execute("SELECT id FROM groups WHERE name = ? LIMIT 1", (name,)).fetchone()
             if row:
                 return int(row["id"])
-            cur = conn.execute("INSERT INTO groups (name, description, color, proxy_url, is_system) VALUES (?, ?, ?, ?, 0)", (name, "", "#111111", ""))
+            cur = conn.execute(
+                "INSERT INTO groups (name, description, color, proxy_url, is_system) VALUES (?, ?, ?, ?, 0)",
+                (name, "", "#111111", ""),
+            )
             conn.commit()
             return int(cur.lastrowid)
         finally:
@@ -176,7 +179,7 @@ class ImportExportV2AutoTests(unittest.TestCase):
         self.assertEqual(summary.get("skipped"), 0)
         self.assertEqual(summary.get("failed"), 0)
 
-        by_provider = (summary.get("by_provider") or {})
+        by_provider = summary.get("by_provider") or {}
         self.assertIn("outlook", by_provider)
         self.assertIn("gmail", by_provider)
         self.assertIn("qq", by_provider)

@@ -1,4 +1,5 @@
 """tests/test_detect_line_type.py — FD-00006 行类型识别单元测试"""
+
 import unittest
 
 from tests._import_app import import_web_app_module

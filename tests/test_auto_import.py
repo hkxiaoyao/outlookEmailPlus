@@ -1,4 +1,5 @@
 """tests/test_auto_import.py — FD-00006 auto 混合导入集成测试"""
+
 import json
 import unittest
 
@@ -18,7 +19,9 @@ class TestAutoImport(unittest.TestCase):
 
             db = get_db()
             # 清理测试数据
-            db.execute("DELETE FROM accounts WHERE email LIKE '%@autotest.%' OR email LIKE '%@gmail.com' OR email LIKE '%@qq.com'")
+            db.execute(
+                "DELETE FROM accounts WHERE email LIKE '%@autotest.%' OR email LIKE '%@gmail.com' OR email LIKE '%@qq.com'"
+            )
             db.execute("DELETE FROM temp_emails WHERE email LIKE '%@autotest.%' OR email LIKE '%@gptmail.com'")
             db.commit()
 
@@ -37,11 +40,7 @@ class TestAutoImport(unittest.TestCase):
         client = self.app.test_client()
         self._login(client)
 
-        text = (
-            "ol@autotest.com----pwd----cid----rtoken\n"
-            "qq@qq.com----authcode----qq\n"
-            "gm@gmail.com----apppass"
-        )
+        text = "ol@autotest.com----pwd----cid----rtoken\n" "qq@qq.com----authcode----qq\n" "gm@gmail.com----apppass"
         data = self._import_auto(client, text)
         self.assertTrue(data["success"])
         s = data["summary"]

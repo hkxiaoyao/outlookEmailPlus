@@ -708,7 +708,9 @@ def _handle_gptmail_import(
     from outlook_web.services import gptmail
 
     if gptmail_count >= max_gptmail:
-        errors.append({"line": line_num, "email": email, "error": f"GPTMail 单次导入上限 {max_gptmail} 个", "detected_type": "gptmail"})
+        errors.append(
+            {"line": line_num, "email": email, "error": f"GPTMail 单次导入上限 {max_gptmail} 个", "detected_type": "gptmail"}
+        )
         return False
 
     # 检查是否已存在
@@ -866,7 +868,9 @@ def _handle_auto_import(data: Dict[str, Any]) -> Any:
                     errors_total += 1
                     by_provider[prov]["failed"] += 1
                     if len(errors) < max_error_details:
-                        errors.append({"line": line_num, "email": email, "error": "覆盖更新失败", "detected_type": result["type"]})
+                        errors.append(
+                            {"line": line_num, "email": email, "error": "覆盖更新失败", "detected_type": result["type"]}
+                        )
                 continue
 
         # 新增账号
@@ -1614,11 +1618,7 @@ def api_refresh_account(account_id: int) -> Any:
 
     if success:
         try:
-            if (
-                isinstance(new_refresh_token, str)
-                and new_refresh_token.strip()
-                and new_refresh_token != refresh_token
-            ):
+            if isinstance(new_refresh_token, str) and new_refresh_token.strip() and new_refresh_token != refresh_token:
                 accounts_repo.update_account_credentials(account_id, refresh_token=new_refresh_token)
             db.execute(
                 "UPDATE accounts SET last_refresh_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",

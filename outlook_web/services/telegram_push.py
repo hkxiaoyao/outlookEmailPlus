@@ -2,6 +2,7 @@
 
 轮询 IMAP/Graph 读取新邮件 → 构造消息 → 调用 Telegram Bot API → 丢弃内容，仅更新游标。
 """
+
 from __future__ import annotations
 
 import logging
@@ -142,6 +143,7 @@ def _fetch_new_emails_imap(account: dict, since: str) -> List[dict]:
         _, date_data = conn.fetch(id_range, "(INTERNALDATE)")
 
         import re
+
         date_pattern = re.compile(rb'INTERNALDATE "([^"]+)"')
         new_msg_ids = []
 
@@ -157,8 +159,9 @@ def _fetch_new_emails_imap(account: dict, since: str) -> List[dict]:
             mid = mid_match.group(1)
             idate_str = date_match.group(1).decode("ascii", errors="replace")
             try:
-                from imaplib import Internaldate2tuple
                 import calendar
+                from imaplib import Internaldate2tuple
+
                 tt = Internaldate2tuple(b'"' + date_match.group(1) + b'"')
                 if tt:
                     ts = calendar.timegm(tt)
@@ -178,8 +181,7 @@ def _fetch_new_emails_imap(account: dict, since: str) -> List[dict]:
 
                 subject_parts = email.header.decode_header(msg.get("Subject", ""))
                 subject = "".join(
-                    part.decode(charset or "utf-8") if isinstance(part, bytes) else part
-                    for part, charset in subject_parts
+                    part.decode(charset or "utf-8") if isinstance(part, bytes) else part for part, charset in subject_parts
                 )
 
                 sender = msg.get("From", "")
@@ -213,9 +215,7 @@ def _fetch_new_emails_imap(account: dict, since: str) -> List[dict]:
                         elif ct == "text/html" and not body:
                             payload = part.get_payload(decode=True)
                             if payload:
-                                body = _html_to_plain(
-                                    payload.decode(part.get_content_charset() or "utf-8", errors="replace")
-                                )
+                                body = _html_to_plain(payload.decode(part.get_content_charset() or "utf-8", errors="replace"))
                 else:
                     payload = msg.get_payload(decode=True)
                     if payload:
@@ -340,6 +340,7 @@ def _cleanup_push_log(db) -> None:
     """清理超过 PUSH_LOG_RETENTION_DAYS 天的去重记录。"""
     try:
         from datetime import timedelta
+
         cutoff = (datetime.now(timezone.utc) - timedelta(days=PUSH_LOG_RETENTION_DAYS)).strftime("%Y-%m-%dT%H:%M:%S")
         db.execute("DELETE FROM telegram_push_log WHERE pushed_at < ?", (cutoff,))
         db.commit()
@@ -366,7 +367,10 @@ def _fetch_account_emails(account: dict) -> tuple:
 
         logger.info(
             "[telegram_push] account=%s provider=%s since=%s found=%d",
-            account.get("email"), account.get("provider"), last_checked, len(emails),
+            account.get("email"),
+            account.get("provider"),
+            last_checked,
+            len(emails),
         )
         return (account, emails, None)
     except Exception as e:
@@ -407,6 +411,7 @@ def run_telegram_push_job(app) -> None:
         job_start_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         # 计算 recency 截止时间（超过此时间的邮件不推送）
         from datetime import timedelta
+
         recency_cutoff = (datetime.now(timezone.utc) - timedelta(hours=PUSH_RECENCY_HOURS)).strftime("%Y-%m-%dT%H:%M:%S")
         sent_count = 0
         dedup_skipped = 0
@@ -470,5 +475,4 @@ def run_telegram_push_job(app) -> None:
         _cleanup_push_log(db)
 
     elapsed = time.monotonic() - t0
-    logger.info("[telegram_push] job finished: sent=%d dedup_skipped=%d elapsed=%.1fs",
-                sent_count, dedup_skipped, elapsed)
+    logger.info("[telegram_push] job finished: sent=%d dedup_skipped=%d elapsed=%.1fs", sent_count, dedup_skipped, elapsed)

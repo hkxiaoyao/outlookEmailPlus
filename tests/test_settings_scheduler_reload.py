@@ -46,4 +46,3 @@ class SettingsSchedulerReloadTests(unittest.TestCase):
         self.assertEqual(kwargs, {}, "此处调用应使用位置参数，避免未来签名变化导致静默错配")
         self.assertIs(args[0], fake_scheduler)
         self.assertIs(args[1], self.app)
-
