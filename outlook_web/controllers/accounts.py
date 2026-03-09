@@ -1803,8 +1803,7 @@ def api_get_failed_refresh_logs() -> Any:
     db = get_db()
 
     # 获取每个账号最近一次失败的刷新记录
-    cursor = db.execute(
-        """
+    cursor = db.execute("""
         SELECT l.*, a.email as account_email, a.status as account_status
         FROM account_refresh_logs l
         INNER JOIN (
@@ -1815,8 +1814,7 @@ def api_get_failed_refresh_logs() -> Any:
         LEFT JOIN accounts a ON l.account_id = a.id
         WHERE l.status = 'failed'
         ORDER BY l.created_at DESC
-    """
-    )
+    """)
 
     logs = []
     for row in cursor.fetchall():
@@ -1841,27 +1839,22 @@ def api_get_refresh_stats() -> Any:
     """获取刷新统计信息（统计当前失败状态的邮箱数量）"""
     db = get_db()
 
-    cursor = db.execute(
-        """
+    cursor = db.execute("""
         SELECT MAX(created_at) as last_refresh_time
         FROM account_refresh_logs
         WHERE refresh_type IN ('manual', 'manual_all', 'scheduled', 'retry')
-    """
-    )
+    """)
     row = cursor.fetchone()
     last_refresh_time = row["last_refresh_time"] if row else None
 
-    cursor = db.execute(
-        """
+    cursor = db.execute("""
         SELECT COUNT(*) as total_accounts
         FROM accounts
         WHERE status = 'active'
-    """
-    )
+    """)
     total_accounts = cursor.fetchone()["total_accounts"]
 
-    cursor = db.execute(
-        """
+    cursor = db.execute("""
         SELECT COUNT(DISTINCT l.account_id) as failed_count
         FROM account_refresh_logs l
         INNER JOIN (
@@ -1871,8 +1864,7 @@ def api_get_refresh_stats() -> Any:
         ) latest ON l.account_id = latest.account_id AND l.created_at = latest.last_refresh
         INNER JOIN accounts a ON l.account_id = a.id
         WHERE l.status = 'failed' AND a.status = 'active'
-    """
-    )
+    """)
     failed_count = cursor.fetchone()["failed_count"]
 
     return jsonify(

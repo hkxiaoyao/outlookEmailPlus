@@ -35,13 +35,11 @@ def api_get_scheduler_status() -> Any:
         refresh_cron = settings_repo.get_setting("refresh_cron", "0 2 * * *")
 
         # 心跳
-        heartbeat_row = conn.execute(
-            """
+        heartbeat_row = conn.execute("""
             SELECT value, updated_at
             FROM settings
             WHERE key = 'scheduler_heartbeat'
-        """
-        ).fetchone()
+        """).fetchone()
 
         heartbeat = None
         heartbeat_age_seconds = None
@@ -78,28 +76,24 @@ def api_get_scheduler_status() -> Any:
             lock_info = {"locked": False}
 
         # 最近一次定时刷新（含手动触发 scheduled_manual）
-        last_scheduled_run = conn.execute(
-            """
+        last_scheduled_run = conn.execute("""
             SELECT id, trigger_source, status, started_at, finished_at,
                    total, success_count, failed_count, message, trace_id, requested_by_ip
             FROM refresh_runs
             WHERE trigger_source IN ('scheduled', 'scheduled_manual')
             ORDER BY started_at DESC
             LIMIT 1
-        """
-        ).fetchone()
+        """).fetchone()
 
         last_scheduled = dict(last_scheduled_run) if last_scheduled_run else None
 
-        running_run = conn.execute(
-            """
+        running_run = conn.execute("""
             SELECT id, trigger_source, status, started_at, total, success_count, failed_count, trace_id
             FROM refresh_runs
             WHERE status = 'running'
             ORDER BY started_at DESC
             LIMIT 1
-        """
-        ).fetchone()
+        """).fetchone()
 
         running = dict(running_run) if running_run else None
 
@@ -119,8 +113,7 @@ def api_get_scheduler_status() -> Any:
                     future_runs = []
             else:
                 # 按天数策略：基于最近一次已完成的 scheduled/scheduled_manual 计算 next_due
-                row = conn.execute(
-                    """
+                row = conn.execute("""
                     SELECT finished_at
                     FROM refresh_runs
                     WHERE trigger_source IN ('scheduled', 'scheduled_manual')
@@ -128,8 +121,7 @@ def api_get_scheduler_status() -> Any:
                       AND finished_at IS NOT NULL
                     ORDER BY finished_at DESC
                     LIMIT 1
-                """
-                ).fetchone()
+                """).fetchone()
                 last_finished_at = row["finished_at"] if row else None
                 try:
                     last_time = datetime.fromisoformat(last_finished_at) if last_finished_at else None

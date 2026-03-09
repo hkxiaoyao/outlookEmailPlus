@@ -22,14 +22,12 @@ def load_accounts(group_id: int = None) -> List[Dict]:
             (group_id,),
         )
     else:
-        cursor = db.execute(
-            """
+        cursor = db.execute("""
             SELECT a.*, g.name as group_name, g.color as group_color
             FROM accounts a
             LEFT JOIN groups g ON a.group_id = g.id
             ORDER BY a.created_at DESC
-        """
-        )
+        """)
     rows = cursor.fetchall()
 
     tags_by_account: Dict[int, List[Dict[str, Any]]] = {}
@@ -417,13 +415,11 @@ def update_telegram_cursor(account_id: int, checked_at: str) -> None:
 def get_telegram_push_accounts() -> List[Dict]:
     """返回所有 telegram_push_enabled=1 且非 disabled 状态的账号。"""
     db = get_db()
-    rows = db.execute(
-        """SELECT a.id, a.email, a.provider, a.client_id, a.refresh_token,
+    rows = db.execute("""SELECT a.id, a.email, a.provider, a.client_id, a.refresh_token,
                   a.imap_host, a.imap_port, a.imap_password,
                   a.telegram_last_checked_at, a.group_id,
                   g.proxy_url
            FROM accounts a
            LEFT JOIN groups g ON a.group_id = g.id
-           WHERE a.telegram_push_enabled = 1 AND a.status != 'disabled'"""
-    ).fetchall()
+           WHERE a.telegram_push_enabled = 1 AND a.status != 'disabled'""").fetchall()
     return [dict(r) for r in rows]

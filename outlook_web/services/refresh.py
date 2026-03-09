@@ -316,8 +316,7 @@ def stream_trigger_scheduled_refresh(
         )
 
         if (not force) and (not use_cron):
-            row = conn.execute(
-                """
+            row = conn.execute("""
                 SELECT finished_at
                 FROM refresh_runs
                 WHERE trigger_source IN ('scheduled', 'scheduled_manual')
@@ -325,8 +324,7 @@ def stream_trigger_scheduled_refresh(
                   AND finished_at IS NOT NULL
                 ORDER BY finished_at DESC
                 LIMIT 1
-            """
-            ).fetchone()
+            """).fetchone()
 
             if row and row["finished_at"]:
                 try:
@@ -564,8 +562,7 @@ def refresh_failed_accounts(
     """重试所有失败的账号（非流式）"""
     lock_owner_id = uuid.uuid4().hex
 
-    cursor = db.execute(
-        """
+    cursor = db.execute("""
         SELECT DISTINCT a.id, a.email, a.client_id, a.refresh_token, a.group_id
         FROM accounts a
         INNER JOIN (
@@ -575,8 +572,7 @@ def refresh_failed_accounts(
         ) latest ON a.id = latest.account_id
         INNER JOIN account_refresh_logs l ON a.id = l.account_id AND l.created_at = latest.last_refresh
         WHERE l.status = 'failed' AND a.status = 'active'
-    """
-    )
+    """)
     accounts = cursor.fetchall()
 
     total = len(accounts)

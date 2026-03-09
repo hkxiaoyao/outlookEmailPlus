@@ -9,14 +9,12 @@ from outlook_web.db import get_db
 def load_groups() -> List[Dict]:
     """加载所有分组（临时邮箱分组排在最前面）"""
     db = get_db()
-    cursor = db.execute(
-        """
+    cursor = db.execute("""
         SELECT * FROM groups
         ORDER BY
             CASE WHEN name = '临时邮箱' THEN 0 ELSE 1 END,
             id
-    """
-    )
+    """)
     rows = cursor.fetchall()
     return [dict(row) for row in rows]
 

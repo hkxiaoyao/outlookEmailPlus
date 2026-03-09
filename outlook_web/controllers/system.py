@@ -47,13 +47,11 @@ def api_system_health() -> Any:
             db_ok = False
 
         # Scheduler 心跳
-        heartbeat_row = conn.execute(
-            """
+        heartbeat_row = conn.execute("""
             SELECT updated_at
             FROM settings
             WHERE key = 'scheduler_heartbeat'
-        """
-        ).fetchone()
+        """).fetchone()
 
         heartbeat_age_seconds = None
         if heartbeat_row and heartbeat_row["updated_at"]:
@@ -78,15 +76,13 @@ def api_system_health() -> Any:
         ).fetchone()
         locked = bool(lock_row and lock_row["expires_at"] and lock_row["expires_at"] > time.time())
 
-        running_run = conn.execute(
-            """
+        running_run = conn.execute("""
             SELECT id, trigger_source, started_at, trace_id
             FROM refresh_runs
             WHERE status = 'running'
             ORDER BY started_at DESC
             LIMIT 1
-        """
-        ).fetchone()
+        """).fetchone()
 
         return jsonify(
             {
@@ -137,32 +133,26 @@ def api_system_diagnostics() -> Any:
             (now_ts,),
         ).fetchone()["c"]
 
-        running_runs = conn.execute(
-            """
+        running_runs = conn.execute("""
             SELECT id, trigger_source, started_at, trace_id
             FROM refresh_runs
             WHERE status = 'running'
             ORDER BY started_at DESC
             LIMIT 5
-        """
-        ).fetchall()
+        """).fetchall()
 
-        last_runs = conn.execute(
-            """
+        last_runs = conn.execute("""
             SELECT id, trigger_source, status, started_at, finished_at, total, success_count, failed_count, trace_id
             FROM refresh_runs
             ORDER BY started_at DESC
             LIMIT 10
-        """
-        ).fetchall()
+        """).fetchall()
 
-        locks = conn.execute(
-            """
+        locks = conn.execute("""
             SELECT name, owner_id, acquired_at, expires_at
             FROM distributed_locks
             ORDER BY name ASC
-        """
-        ).fetchall()
+        """).fetchall()
 
         # 数据库升级状态（可验证）
         schema_version_row = conn.execute(
@@ -172,14 +162,12 @@ def api_system_diagnostics() -> Any:
 
         last_migration = None
         try:
-            mig = conn.execute(
-                """
+            mig = conn.execute("""
                 SELECT id, from_version, to_version, status, started_at, finished_at, error, trace_id
                 FROM schema_migrations
                 ORDER BY started_at DESC
                 LIMIT 1
-            """
-            ).fetchone()
+            """).fetchone()
             last_migration = dict(mig) if mig else None
         except Exception:
             last_migration = None
@@ -225,14 +213,12 @@ def api_system_upgrade_status() -> Any:
 
         last_migration = None
         try:
-            mig = conn.execute(
-                """
+            mig = conn.execute("""
                 SELECT id, from_version, to_version, status, started_at, finished_at, error, trace_id
                 FROM schema_migrations
                 ORDER BY started_at DESC
                 LIMIT 1
-            """
-            ).fetchone()
+            """).fetchone()
             last_migration = dict(mig) if mig else None
         except Exception:
             last_migration = None

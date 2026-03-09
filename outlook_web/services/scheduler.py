@@ -233,8 +233,7 @@ def scheduled_refresh_task(app, test_refresh_token):
 
         # 按天数策略：未到周期则跳过（不产生账号级刷新日志）
         if not use_cron:
-            row = conn.execute(
-                """
+            row = conn.execute("""
                 SELECT finished_at
                 FROM refresh_runs
                 WHERE trigger_source = 'scheduled'
@@ -242,8 +241,7 @@ def scheduled_refresh_task(app, test_refresh_token):
                   AND finished_at IS NOT NULL
                 ORDER BY finished_at DESC
                 LIMIT 1
-            """
-            ).fetchone()
+            """).fetchone()
 
             if row and row["finished_at"]:
                 try:
@@ -278,14 +276,12 @@ def scheduled_refresh_task(app, test_refresh_token):
             pass
 
         # PRD-00005 / TDD-00005：定时刷新只处理 Outlook 账号（IMAP 账号无 OAuth token 刷新语义）
-        accounts = conn.execute(
-            """
+        accounts = conn.execute("""
             SELECT id, email, client_id, refresh_token, group_id
             FROM accounts
             WHERE status = 'active'
               AND (account_type = 'outlook' OR account_type IS NULL)
-        """
-        ).fetchall()
+        """).fetchall()
         total = len(accounts)
 
         # 更新 run_id 的 total
