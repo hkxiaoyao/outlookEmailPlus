@@ -42,7 +42,7 @@ paths:
         - $ref: '#/components/parameters/Top'
         - $ref: '#/components/parameters/FromContains'
         - $ref: '#/components/parameters/SubjectContains'
-        - $ref: '#/components/parameters/SinceMinutes'
+        - $ref: '#/components/parameters/SinceMinutesOptional'
       responses:
         '200':
           description: 成功
@@ -71,7 +71,7 @@ paths:
         - $ref: '#/components/parameters/Folder'
         - $ref: '#/components/parameters/FromContains'
         - $ref: '#/components/parameters/SubjectContains'
-        - $ref: '#/components/parameters/SinceMinutes'
+        - $ref: '#/components/parameters/SinceMinutesOptional'
       responses:
         '200':
           description: 成功
@@ -154,7 +154,7 @@ paths:
         - $ref: '#/components/parameters/Folder'
         - $ref: '#/components/parameters/FromContains'
         - $ref: '#/components/parameters/SubjectContains'
-        - $ref: '#/components/parameters/SinceMinutes'
+        - $ref: '#/components/parameters/SinceMinutesDefault10'
         - $ref: '#/components/parameters/CodeLength'
         - $ref: '#/components/parameters/CodeRegex'
         - $ref: '#/components/parameters/CodeSource'
@@ -203,7 +203,7 @@ paths:
         - $ref: '#/components/parameters/Folder'
         - $ref: '#/components/parameters/FromContains'
         - $ref: '#/components/parameters/SubjectContains'
-        - $ref: '#/components/parameters/SinceMinutes'
+        - $ref: '#/components/parameters/SinceMinutesDefault10'
       responses:
         '200':
           description: 成功
@@ -252,7 +252,7 @@ paths:
         - $ref: '#/components/parameters/Folder'
         - $ref: '#/components/parameters/FromContains'
         - $ref: '#/components/parameters/SubjectContains'
-        - $ref: '#/components/parameters/SinceMinutes'
+        - $ref: '#/components/parameters/SinceMinutesOptional'
         - $ref: '#/components/parameters/TimeoutSeconds'
         - $ref: '#/components/parameters/PollInterval'
       responses:
@@ -396,11 +396,19 @@ components:
       description: 主题模糊匹配关键字
       schema:
         type: string
-    SinceMinutes:
+    SinceMinutesOptional:
       name: since_minutes
       in: query
       required: false
-      description: 最近 N 分钟内的邮件
+      description: 最近 N 分钟内的邮件；未传时不强制启用时间窗口过滤
+      schema:
+        type: integer
+        minimum: 1
+    SinceMinutesDefault10:
+      name: since_minutes
+      in: query
+      required: false
+      description: 最近 N 分钟内的邮件；未传时按接口默认值 10 分钟处理
       schema:
         type: integer
         minimum: 1
@@ -596,6 +604,23 @@ components:
         verification_code:
           type: string
           example: '123456'
+        verification_link:
+          type: string
+          format: uri
+          nullable: true
+          description: 同时提取到的验证链接（可能为 null）
+          example: null
+        links:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: 邮件中提取到的所有链接
+        formatted:
+          type: string
+          nullable: true
+          description: 格式化输出（验证码 + 链接拼接）
+          example: '123456'
         matched_email_id:
           type: string
           example: AAMkAGI2...
@@ -615,7 +640,7 @@ components:
           example: content
         confidence:
           type: string
-          enum: [high, medium, low]
+          enum: [high, low]
           example: high
         method:
           type: string
@@ -633,9 +658,23 @@ components:
         email:
           type: string
           format: email
+          example: user@outlook.com
+        verification_code:
+          type: string
+          nullable: true
+          description: 同时提取到的验证码（可能为空字符串或 null）
+          example: ''
         verification_link:
           type: string
           format: uri
+          example: https://example.com/verify?token=abc123
+        links:
+          type: array
+          items:
+            type: string
+            format: uri
+        formatted:
+          type: string
           example: https://example.com/verify?token=abc123
         matched_email_id:
           type: string
@@ -646,9 +685,13 @@ components:
         received_at:
           type: string
           format: date-time
+        match_source:
+          type: string
+          enum: [subject, content, html, all]
+          example: all
         confidence:
           type: string
-          enum: [high, medium, low]
+          enum: [high, low]
           example: high
         method:
           type: string
@@ -714,6 +757,10 @@ components:
         group_id:
           type: integer
           example: 1
+        status:
+          type: string
+          description: 账号状态（active / disabled 等）
+          example: active
         last_refresh_at:
           type: string
           nullable: true

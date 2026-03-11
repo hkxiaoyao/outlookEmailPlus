@@ -841,8 +841,22 @@ def api_external_get_verification_code() -> Any:
         )
         return _external_error_response(exc)
     except ValueError:
+        external_api_service.audit_external_api_access(
+            action="external_api_access",
+            email_addr=(request.args.get("email") or "").strip(),
+            endpoint="/api/external/verification-code",
+            status="error",
+            details={"code": "INVALID_PARAM"},
+        )
         return jsonify(external_api_service.fail("INVALID_PARAM", "参数错误")), 400
     except Exception:
+        external_api_service.audit_external_api_access(
+            action="external_api_access",
+            email_addr=(request.args.get("email") or "").strip(),
+            endpoint="/api/external/verification-code",
+            status="error",
+            details={"code": "INTERNAL_ERROR"},
+        )
         return jsonify(external_api_service.fail("INTERNAL_ERROR", "服务内部错误")), 500
 
 
@@ -878,6 +892,13 @@ def api_external_get_verification_link() -> Any:
         )
         return _external_error_response(exc)
     except Exception:
+        external_api_service.audit_external_api_access(
+            action="external_api_access",
+            email_addr=(request.args.get("email") or "").strip(),
+            endpoint="/api/external/verification-link",
+            status="error",
+            details={"code": "INTERNAL_ERROR"},
+        )
         return jsonify(external_api_service.fail("INTERNAL_ERROR", "服务内部错误")), 500
 
 
@@ -914,5 +935,12 @@ def api_external_wait_message() -> Any:
             details={"code": exc.code},
         )
         return _external_error_response(exc)
-    except Exception:
+    except Exception as exc:
+        external_api_service.audit_external_api_access(
+            action="external_api_access",
+            email_addr=(request.args.get("email") or "").strip(),
+            endpoint="/api/external/wait-message",
+            status="error",
+            details={"code": "INTERNAL_ERROR", "err": type(exc).__name__},
+        )
         return jsonify(external_api_service.fail("INTERNAL_ERROR", "服务内部错误")), 500
