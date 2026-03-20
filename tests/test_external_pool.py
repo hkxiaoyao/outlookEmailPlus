@@ -112,11 +112,89 @@ class ExternalPoolApiTests(unittest.TestCase):
             row = db.execute("SELECT id FROM accounts WHERE email = ?", (email_addr,)).fetchone()
             return int(row["id"])
 
+    def test_old_anonymous_pool_endpoints_are_removed(self):
+        client = self.app.test_client()
+
+        endpoints = [
+            ("get", "/api/pool/stats", None),
+            ("post", "/api/pool/claim-random", {"caller_id": "legacy", "task_id": "removed-random"}),
+            ("post", "/api/pool/claim-release", {"account_id": 1, "claim_token": "clm_old", "caller_id": "legacy", "task_id": "removed-release"}),
+            ("post", "/api/pool/claim-complete", {"account_id": 1, "claim_token": "clm_old", "caller_id": "legacy", "task_id": "removed-complete", "result": "success"}),
+        ]
+
+        for method, path, payload in endpoints:
+            if method == "get":
+                resp = client.get(path)
+            else:
+                resp = client.post(path, json=payload)
+            self.assertEqual(resp.status_code, 404, msg=f"{path} should return 404 after removal")
+
     def test_external_pool_stats_requires_api_key(self):
         client = self.app.test_client()
         self._set_external_api_key("abc123")
 
         resp = client.get("/api/external/pool/stats")
+
+        self.assertEqual(resp.status_code, 401)
+        self.assertEqual(resp.get_json().get("code"), "UNAUTHORIZED")
+
+    def test_external_pool_claim_release_requires_api_key(self):
+        client = self.app.test_client()
+        self._set_external_api_key("abc123")
+        with self.app.app_context():
+            from outlook_web.repositories import settings as settings_repo
+
+            settings_repo.set_setting("pool_external_enabled", "true")
+        self._insert_pool_account(provider="outlook")
+
+        claim_resp = client.post(
+            "/api/external/pool/claim-random",
+            headers=self._auth_headers(),
+            json={"caller_id": "ext-worker-01", "task_id": "release-no-key", "provider": "outlook"},
+        )
+        self.assertEqual(claim_resp.status_code, 200)
+        claim_data = claim_resp.get_json()["data"]
+
+        resp = client.post(
+            "/api/external/pool/claim-release",
+            json={
+                "account_id": claim_data["account_id"],
+                "claim_token": claim_data["claim_token"],
+                "caller_id": "ext-worker-01",
+                "task_id": "release-no-key",
+            },
+        )
+
+        self.assertEqual(resp.status_code, 401)
+        self.assertEqual(resp.get_json().get("code"), "UNAUTHORIZED")
+
+    def test_external_pool_claim_complete_requires_api_key(self):
+        client = self.app.test_client()
+        self._set_external_api_key("abc123")
+        with self.app.app_context():
+            from outlook_web.repositories import settings as settings_repo
+
+            settings_repo.set_setting("pool_external_enabled", "true")
+        self._insert_pool_account(provider="outlook")
+
+        claim_resp = client.post(
+            "/api/external/pool/claim-random",
+            headers=self._auth_headers(),
+            json={"caller_id": "ext-worker-01", "task_id": "complete-no-key", "provider": "outlook"},
+        )
+        self.assertEqual(claim_resp.status_code, 200)
+        claim_data = claim_resp.get_json()["data"]
+
+        resp = client.post(
+            "/api/external/pool/claim-complete",
+            json={
+                "account_id": claim_data["account_id"],
+                "claim_token": claim_data["claim_token"],
+                "caller_id": "ext-worker-01",
+                "task_id": "complete-no-key",
+                "result": "success",
+            },
+        )
 
         self.assertEqual(resp.status_code, 401)
         self.assertEqual(resp.get_json().get("code"), "UNAUTHORIZED")
@@ -465,6 +543,71 @@ class ExternalPoolApiTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 403)
         data = resp.get_json()
         self.assertEqual(data.get("code"), "FORBIDDEN")
+
+    def test_external_pool_claim_release_requires_pool_access_for_multi_key(self):
+        client = self.app.test_client()
+        self._create_external_api_key("partner-deny", "multi-pool-release-deny", pool_access=False)
+        self._create_external_api_key("partner-allow", "multi-pool-release-allow", pool_access=True)
+        with self.app.app_context():
+            from outlook_web.repositories import settings as settings_repo
+
+            settings_repo.set_setting("pool_external_enabled", "true")
+        self._insert_pool_account(provider="outlook")
+
+        claim_resp = client.post(
+            "/api/external/pool/claim-random",
+            headers=self._auth_headers("multi-pool-release-allow"),
+            json={"caller_id": "ext-worker-01", "task_id": "release-deny", "provider": "outlook"},
+        )
+        self.assertEqual(claim_resp.status_code, 200)
+        claim_data = claim_resp.get_json()["data"]
+
+        resp = client.post(
+            "/api/external/pool/claim-release",
+            headers=self._auth_headers("multi-pool-release-deny"),
+            json={
+                "account_id": claim_data["account_id"],
+                "claim_token": claim_data["claim_token"],
+                "caller_id": "ext-worker-01",
+                "task_id": "release-deny",
+            },
+        )
+
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.get_json().get("code"), "FORBIDDEN")
+
+    def test_external_pool_claim_complete_requires_pool_access_for_multi_key(self):
+        client = self.app.test_client()
+        self._create_external_api_key("partner-deny", "multi-pool-complete-deny", pool_access=False)
+        self._create_external_api_key("partner-allow", "multi-pool-complete-allow", pool_access=True)
+        with self.app.app_context():
+            from outlook_web.repositories import settings as settings_repo
+
+            settings_repo.set_setting("pool_external_enabled", "true")
+        self._insert_pool_account(provider="outlook")
+
+        claim_resp = client.post(
+            "/api/external/pool/claim-random",
+            headers=self._auth_headers("multi-pool-complete-allow"),
+            json={"caller_id": "ext-worker-01", "task_id": "complete-deny", "provider": "outlook"},
+        )
+        self.assertEqual(claim_resp.status_code, 200)
+        claim_data = claim_resp.get_json()["data"]
+
+        resp = client.post(
+            "/api/external/pool/claim-complete",
+            headers=self._auth_headers("multi-pool-complete-deny"),
+            json={
+                "account_id": claim_data["account_id"],
+                "claim_token": claim_data["claim_token"],
+                "caller_id": "ext-worker-01",
+                "task_id": "complete-deny",
+                "result": "success",
+            },
+        )
+
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.get_json().get("code"), "FORBIDDEN")
 
     def test_external_pool_returns_api_key_not_configured(self):
         client = self.app.test_client()

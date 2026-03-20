@@ -2,7 +2,7 @@ import json
 import unittest
 import uuid
 
-from tests._import_app import import_web_app_module
+from tests._import_app import clear_login_attempts, import_web_app_module
 
 
 class PoolFlowSuiteTests(unittest.TestCase):
@@ -14,6 +14,34 @@ class PoolFlowSuiteTests(unittest.TestCase):
         from outlook_web.db import create_sqlite_connection
 
         cls.create_conn = staticmethod(lambda: create_sqlite_connection())
+
+    def setUp(self):
+        with self.app.app_context():
+            clear_login_attempts()
+            from outlook_web.db import get_db
+            from outlook_web.repositories import settings as settings_repo
+
+            db = get_db()
+            db.execute("DELETE FROM external_api_keys")
+            db.execute("DELETE FROM external_api_consumer_usage_daily")
+            db.execute("DELETE FROM audit_logs WHERE resource_type = 'external_api'")
+            db.execute(
+                "DELETE FROM account_claim_logs WHERE account_id IN (SELECT id FROM accounts WHERE email LIKE '%@poolflow.test')"
+            )
+            db.execute("DELETE FROM accounts WHERE email LIKE '%@poolflow.test'")
+            db.commit()
+            settings_repo.set_setting("external_api_key", "suite-key")
+            settings_repo.set_setting("pool_external_enabled", "true")
+            settings_repo.set_setting("external_api_public_mode", "false")
+            settings_repo.set_setting("external_api_ip_whitelist", "[]")
+            settings_repo.set_setting("external_api_disable_pool_claim_random", "false")
+            settings_repo.set_setting("external_api_disable_pool_claim_release", "false")
+            settings_repo.set_setting("external_api_disable_pool_claim_complete", "false")
+            settings_repo.set_setting("external_api_disable_pool_stats", "false")
+
+    @staticmethod
+    def _auth_headers():
+        return {"X-API-Key": "suite-key"}
 
     def _make_pool_account(self, *, provider: str = "outlook", pool_status: str = "available") -> dict:
         conn = self.create_conn()
@@ -42,7 +70,8 @@ class PoolFlowSuiteTests(unittest.TestCase):
         self._make_pool_account()
 
         claim_resp = self.client.post(
-            "/api/pool/claim-random",
+            "/api/external/pool/claim-random",
+            headers=self._auth_headers(),
             json={"caller_id": "suite_bot", "task_id": "success_flow"},
         )
         self.assertEqual(claim_resp.status_code, 200)
@@ -50,7 +79,8 @@ class PoolFlowSuiteTests(unittest.TestCase):
         self.assertTrue(claim_data["success"])
 
         complete_resp = self.client.post(
-            "/api/pool/claim-complete",
+            "/api/external/pool/claim-complete",
+            headers=self._auth_headers(),
             json={
                 "account_id": claim_data["data"]["account_id"],
                 "claim_token": claim_data["data"]["claim_token"],
@@ -81,7 +111,8 @@ class PoolFlowSuiteTests(unittest.TestCase):
         self._make_pool_account()
 
         claim_resp = self.client.post(
-            "/api/pool/claim-random",
+            "/api/external/pool/claim-random",
+            headers=self._auth_headers(),
             json={"caller_id": "suite_bot", "task_id": "cooldown_flow"},
         )
         self.assertEqual(claim_resp.status_code, 200)
@@ -89,7 +120,8 @@ class PoolFlowSuiteTests(unittest.TestCase):
         self.assertTrue(claim_data["success"])
 
         complete_resp = self.client.post(
-            "/api/pool/claim-complete",
+            "/api/external/pool/claim-complete",
+            headers=self._auth_headers(),
             json={
                 "account_id": claim_data["data"]["account_id"],
                 "claim_token": claim_data["data"]["claim_token"],
@@ -128,7 +160,8 @@ class PoolFlowSuiteTests(unittest.TestCase):
         claimed_tokens = []
         for idx in range(3):
             resp = self.client.post(
-                "/api/pool/claim-random",
+                "/api/external/pool/claim-random",
+                headers=self._auth_headers(),
                 json={
                     "caller_id": "suite_bot",
                     "task_id": f"batch_claim_{idx}",
@@ -152,7 +185,8 @@ class PoolFlowSuiteTests(unittest.TestCase):
 
         for account_id, claim_token, task_id in claimed_tokens:
             release_resp = self.client.post(
-                "/api/pool/claim-release",
+                "/api/external/pool/claim-release",
+                headers=self._auth_headers(),
                 json={
                     "account_id": account_id,
                     "claim_token": claim_token,
