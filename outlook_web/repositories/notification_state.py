@@ -94,9 +94,9 @@ def claim_delivery_attempt(
 ) -> str:
     db = get_db()
     now_iso = _utc_now_iso()
-    stale_cutoff = (
-        datetime.now(timezone.utc) - timedelta(seconds=max(int(processing_timeout_seconds), 1))
-    ).strftime("%Y-%m-%dT%H:%M:%S")
+    stale_cutoff = (datetime.now(timezone.utc) - timedelta(seconds=max(int(processing_timeout_seconds), 1))).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
 
     cur = db.execute(
         """

@@ -163,7 +163,9 @@ def api_delete_temp_email_message(email_addr: str, message_id: str) -> Any:
             f"删除临时邮件（email={email_addr}）",
         )
         return jsonify({"success": True, "message": "邮件已删除", "message_en": "Message deleted"})
-    return build_error_response("TEMP_EMAIL_MESSAGE_DELETE_FAILED", "删除失败", status=500, message_en="Failed to delete message")
+    return build_error_response(
+        "TEMP_EMAIL_MESSAGE_DELETE_FAILED", "删除失败", status=500, message_en="Failed to delete message"
+    )
 
 
 @login_required
@@ -187,7 +189,9 @@ def api_clear_temp_email_messages(email_addr: str) -> Any:
         )
         return jsonify({"success": True, "message": "邮件已清空", "message_en": "Messages cleared"})
     except Exception:
-        return build_error_response("TEMP_EMAIL_MESSAGES_CLEAR_FAILED", "清空失败", status=500, message_en="Failed to clear messages")
+        return build_error_response(
+            "TEMP_EMAIL_MESSAGES_CLEAR_FAILED", "清空失败", status=500, message_en="Failed to clear messages"
+        )
 
 
 @login_required
@@ -222,4 +226,6 @@ def api_refresh_temp_email_messages(email_addr: str) -> Any:
                 "method": "GPTMail",
             }
         )
-    return build_error_response("TEMP_EMAIL_MESSAGES_FETCH_FAILED", "获取邮件失败", status=502, message_en="Failed to fetch messages")
+    return build_error_response(
+        "TEMP_EMAIL_MESSAGES_FETCH_FAILED", "获取邮件失败", status=502, message_en="Failed to fetch messages"
+    )

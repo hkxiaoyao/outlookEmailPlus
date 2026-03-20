@@ -45,10 +45,14 @@ class V190FrontendContractTests(unittest.TestCase):
         main_js = self._get_text(client, "/static/js/main.js")
         self.assertIn("const pickApiMessage = (payload, fallbackZh, fallbackEn) =>", main_js)
         self.assertIn("const formatUiDateTime = (dateStr, options = {}) =>", main_js)
-        self.assertIn("const formatUiRelativeTime = (dateStr, fallbackZh = '从未刷新', fallbackEn = 'Never refreshed') =>", main_js)
+        self.assertIn(
+            "const formatUiRelativeTime = (dateStr, fallbackZh = '从未刷新', fallbackEn = 'Never refreshed') =>", main_js
+        )
         self.assertNotIn("function pickApiMessage(payload, fallbackZh, fallbackEn)", main_js)
         self.assertNotIn("function formatUiDateTime(dateStr, options = {})", main_js)
-        self.assertNotIn("function formatUiRelativeTime(dateStr, fallbackZh = '从未刷新', fallbackEn = 'Never refreshed')", main_js)
+        self.assertNotIn(
+            "function formatUiRelativeTime(dateStr, fallbackZh = '从未刷新', fallbackEn = 'Never refreshed')", main_js
+        )
 
     def test_frontend_no_longer_uses_raw_error_object_toasts_on_key_paths(self):
         client = self.app.test_client()
@@ -190,7 +194,10 @@ class V190FrontendContractTests(unittest.TestCase):
         main_js = self._get_text(client, "/static/js/main.js")
         groups_js = self._get_text(client, "/static/js/features/groups.js")
         emails_js = self._get_text(client, "/static/js/features/emails.js")
-        self.assertIn("translateAppTextLocal(`当前已配置 ${normalized.length} 个多 Key。保留已有脱敏 api_key 表示不修改该 Key；清空后保存表示清空全部多 Key。`)", main_js)
+        self.assertIn(
+            "translateAppTextLocal(`当前已配置 ${normalized.length} 个多 Key。保留已有脱敏 api_key 表示不修改该 Key；清空后保存表示清空全部多 Key。`)",
+            main_js,
+        )
         self.assertIn("translateAppTextLocal('未设置（设置后可通过 /api/external/* 对外开放接口读取邮件与验证码）')", main_js)
         self.assertIn("translateAppTextLocal(`搜索结果 (${data.accounts.length})`)", groups_js)
         self.assertIn("replace(/\\s+\\((临时|Temp)\\)$/, '')", emails_js)

@@ -85,7 +85,9 @@ def api_add_group() -> Any:
     group_id = groups_repo.add_group(name, description, color, proxy_url)
     if group_id:
         log_audit("create", "group", str(group_id), f"创建分组：{name}")
-        return jsonify({"success": True, "message": "分组创建成功", "message_en": "Group created successfully", "group_id": group_id})
+        return jsonify(
+            {"success": True, "message": "分组创建成功", "message_en": "Group created successfully", "group_id": group_id}
+        )
     return build_error_response("GROUP_NAME_DUPLICATED", "分组名称已存在", message_en="Group name already exists")
 
 

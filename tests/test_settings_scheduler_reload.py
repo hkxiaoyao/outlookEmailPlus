@@ -42,9 +42,7 @@ class SettingsSchedulerReloadTests(unittest.TestCase):
                 "outlook_web.services.scheduler.get_scheduler_instance",
                 return_value=fake_scheduler,
             ),
-            patch(
-                "outlook_web.services.scheduler.configure_scheduler_jobs"
-            ) as configure_jobs,
+            patch("outlook_web.services.scheduler.configure_scheduler_jobs") as configure_jobs,
         ):
             resp = client.put("/api/settings", json={"telegram_poll_interval": 60})
 
@@ -58,9 +56,7 @@ class SettingsSchedulerReloadTests(unittest.TestCase):
             "预期触发调度器重载，但 configure_scheduler_jobs 未被调用",
         )
         args, kwargs = configure_jobs.call_args
-        self.assertEqual(
-            kwargs, {}, "此处调用应使用位置参数，避免未来签名变化导致静默错配"
-        )
+        self.assertEqual(kwargs, {}, "此处调用应使用位置参数，避免未来签名变化导致静默错配")
         self.assertIs(args[0], fake_scheduler)
         self.assertIs(args[1], self.app)
 
@@ -69,20 +65,14 @@ class SettingsSchedulerReloadTests(unittest.TestCase):
         fake_scheduler = MagicMock(name="scheduler")
 
         with (
-            patch(
-                "outlook_web.services.scheduler._configure_telegram_push_job"
-            ) as configure_telegram,
-            patch(
-                "outlook_web.services.scheduler._configure_email_notification_job"
-            ) as configure_email,
+            patch("outlook_web.services.scheduler._configure_telegram_push_job") as configure_telegram,
+            patch("outlook_web.services.scheduler._configure_email_notification_job") as configure_email,
             patch("outlook_web.services.scheduler._configure_probe_poll_job"),
             patch("outlook_web.services.scheduler._configure_pool_maintenance_jobs"),
         ):
             from outlook_web.services import scheduler as scheduler_service
 
-            scheduler_service.configure_scheduler_jobs(
-                fake_scheduler, self.app, lambda *_args, **_kwargs: None
-            )
+            scheduler_service.configure_scheduler_jobs(fake_scheduler, self.app, lambda *_args, **_kwargs: None)
 
         # 正确语义：应调用统一通知分发 Job，不应调用单独的 Telegram Job
         configure_email.assert_called_once_with(fake_scheduler, self.app)
@@ -100,14 +90,10 @@ class SettingsSchedulerReloadTests(unittest.TestCase):
                 "outlook_web.services.scheduler.get_scheduler_instance",
                 return_value=fake_scheduler,
             ),
-            patch(
-                "outlook_web.services.scheduler.configure_scheduler_jobs"
-            ) as configure_jobs,
+            patch("outlook_web.services.scheduler.configure_scheduler_jobs") as configure_jobs,
         ):
             # 更新邮件通知开关
-            resp = client.put(
-                "/api/settings", json={"email_notification_enabled": False}
-            )
+            resp = client.put("/api/settings", json={"email_notification_enabled": False})
 
         self.assertEqual(resp.status_code, 200)
         payload = resp.get_json() or {}
@@ -126,13 +112,9 @@ class SettingsSchedulerReloadTests(unittest.TestCase):
                 "outlook_web.services.scheduler.get_scheduler_instance",
                 return_value=fake_scheduler,
             ),
-            patch(
-                "outlook_web.services.scheduler.configure_scheduler_jobs"
-            ) as configure_jobs,
+            patch("outlook_web.services.scheduler.configure_scheduler_jobs") as configure_jobs,
         ):
-            resp = client.put(
-                "/api/settings", json={"email_notification_recipient": "notify@example.com"}
-            )
+            resp = client.put("/api/settings", json={"email_notification_recipient": "notify@example.com"})
 
         self.assertEqual(resp.status_code, 200)
         payload = resp.get_json() or {}
@@ -152,12 +134,8 @@ class SettingsSchedulerReloadTests(unittest.TestCase):
                 return_value=fake_scheduler,
             ),
             patch("outlook_web.services.scheduler.configure_scheduler_jobs"),
-            patch(
-                "outlook_web.services.notification_dispatch.bootstrap_channel_cursors"
-            ) as bootstrap_cursor,
-            patch(
-                "outlook_web.controllers.settings._ensure_email_service_available"
-            ),
+            patch("outlook_web.services.notification_dispatch.bootstrap_channel_cursors") as bootstrap_cursor,
+            patch("outlook_web.controllers.settings._ensure_email_service_available"),
         ):
             resp = client.put(
                 "/api/settings",

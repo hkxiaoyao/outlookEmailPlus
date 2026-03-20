@@ -118,8 +118,22 @@ class ExternalPoolApiTests(unittest.TestCase):
         endpoints = [
             ("get", "/api/pool/stats", None),
             ("post", "/api/pool/claim-random", {"caller_id": "legacy", "task_id": "removed-random"}),
-            ("post", "/api/pool/claim-release", {"account_id": 1, "claim_token": "clm_old", "caller_id": "legacy", "task_id": "removed-release"}),
-            ("post", "/api/pool/claim-complete", {"account_id": 1, "claim_token": "clm_old", "caller_id": "legacy", "task_id": "removed-complete", "result": "success"}),
+            (
+                "post",
+                "/api/pool/claim-release",
+                {"account_id": 1, "claim_token": "clm_old", "caller_id": "legacy", "task_id": "removed-release"},
+            ),
+            (
+                "post",
+                "/api/pool/claim-complete",
+                {
+                    "account_id": 1,
+                    "claim_token": "clm_old",
+                    "caller_id": "legacy",
+                    "task_id": "removed-complete",
+                    "result": "success",
+                },
+            ),
         ]
 
         for method, path, payload in endpoints:

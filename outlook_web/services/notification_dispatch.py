@@ -159,7 +159,9 @@ def _fetch_account_messages(source: dict[str, Any], since: str) -> list[dict[str
                 enriched["folder"] = folder
                 emails.append(enriched)
         except Exception as exc:
-            logger.warning("[notification_dispatch] account fetch failed source=%s folder=%s err=%s", source["label"], folder, exc)
+            logger.warning(
+                "[notification_dispatch] account fetch failed source=%s folder=%s err=%s", source["label"], folder, exc
+            )
             raise
     return emails
 
@@ -463,7 +465,9 @@ def _build_active_channels_for_source(
         active_channels.append(
             (
                 CHANNEL_TELEGRAM,
-                lambda current_source, message, bot_token=telegram_runtime["bot_token"], chat_id=telegram_runtime["chat_id"]: send_business_telegram_notification(  # noqa: E731
+                lambda current_source, message, bot_token=telegram_runtime["bot_token"], chat_id=telegram_runtime[
+                    "chat_id"
+                ]: send_business_telegram_notification(  # noqa: E731
                     current_source,
                     message,
                     bot_token=bot_token,
@@ -559,11 +563,7 @@ def run_email_notification_job(app) -> None:
             return
         # 兼容旧入口：虽然函数名保留为 email_notification_job，
         # 但这里已经与统一通知分发共享“源是否允许通知”的过滤规则。
-        sources = [
-            source
-            for source in list_email_notification_sources()
-            if _is_source_notification_enabled(source)
-        ]
+        sources = [source for source in list_email_notification_sources() if _is_source_notification_enabled(source)]
         if not sources:
             return
         process_channel_for_sources(

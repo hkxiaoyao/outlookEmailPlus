@@ -221,23 +221,21 @@ class NotificationDispatchTests(unittest.TestCase):
                     "EMAIL_NOTIFICATION_FROM": "noreply@example.com",
                 },
                 clear=False,
-            ), patch(
-                "outlook_web.services.notification_dispatch.fetch_source_messages"
-            ) as fetch_mock, patch(
+            ), patch("outlook_web.services.notification_dispatch.fetch_source_messages") as fetch_mock, patch(
                 "outlook_web.services.notification_dispatch.send_business_email_notification"
             ) as send_mock:
                 notification_dispatch.run_notification_dispatch_job(self.app)
 
             fetch_mock.assert_not_called()
             send_mock.assert_not_called()
-            rows = get_db().execute(
-                "SELECT 1 FROM notification_delivery_logs WHERE source_key = ?",
-                (
-                    notification_dispatch.build_source_key(
-                        notification_dispatch.SOURCE_ACCOUNT, "disabled@example.com"
-                    ),
-                ),
-            ).fetchall()
+            rows = (
+                get_db()
+                .execute(
+                    "SELECT 1 FROM notification_delivery_logs WHERE source_key = ?",
+                    (notification_dispatch.build_source_key(notification_dispatch.SOURCE_ACCOUNT, "disabled@example.com"),),
+                )
+                .fetchall()
+            )
             self.assertEqual(rows, [])
 
     def test_legacy_email_notification_job_skips_disabled_account_but_keeps_temp_email(self):
@@ -297,9 +295,11 @@ class NotificationDispatchTests(unittest.TestCase):
             self.assertEqual(send_mock.call_count, 1)
             sent_source = send_mock.call_args[0][0]
             self.assertEqual(sent_source["source_type"], notification_dispatch.SOURCE_TEMP_EMAIL)
-            rows = get_db().execute(
-                "SELECT source_type, status FROM notification_delivery_logs ORDER BY source_type ASC"
-            ).fetchall()
+            rows = (
+                get_db()
+                .execute("SELECT source_type, status FROM notification_delivery_logs ORDER BY source_type ASC")
+                .fetchall()
+            )
             self.assertEqual([(row["source_type"], row["status"]) for row in rows], [("temp_email", "sent")])
 
     def test_missing_message_id_uses_stable_fallback_dedup(self):
@@ -455,15 +455,23 @@ class NotificationDispatchTests(unittest.TestCase):
             fetch_mock.assert_called_once()
             email_send.assert_called_once()
             telegram_send.assert_called_once()
-            rows = get_db().execute(
-                """
+            rows = (
+                get_db()
+                .execute(
+                    """
                 SELECT channel, status
                 FROM notification_delivery_logs
                 WHERE source_key = ?
                 ORDER BY channel ASC
                 """,
-                (notification_dispatch.build_source_key(notification_dispatch.SOURCE_ACCOUNT, "shared-fetch@example.com"),),
-            ).fetchall()
+                    (
+                        notification_dispatch.build_source_key(
+                            notification_dispatch.SOURCE_ACCOUNT, "shared-fetch@example.com"
+                        ),
+                    ),
+                )
+                .fetchall()
+            )
             self.assertEqual([(row["channel"], row["status"]) for row in rows], [("email", "sent"), ("telegram", "sent")])
 
     def test_unified_notification_job_fetches_per_cursor_group_when_channels_diverge(self):
@@ -760,18 +768,30 @@ class NotificationDispatchTests(unittest.TestCase):
                 notification_dispatch.run_notification_dispatch_job(self.app)
 
             telegram_send.assert_called_once()
-            rows = get_db().execute(
-                """
+            rows = (
+                get_db()
+                .execute(
+                    """
                 SELECT channel, status
                 FROM notification_delivery_logs
                 WHERE source_key = ?
                 ORDER BY channel ASC
                 """,
-                (notification_dispatch.build_source_key(notification_dispatch.SOURCE_ACCOUNT, "dual-channel@example.com"),),
-            ).fetchall()
+                    (
+                        notification_dispatch.build_source_key(
+                            notification_dispatch.SOURCE_ACCOUNT, "dual-channel@example.com"
+                        ),
+                    ),
+                )
+                .fetchall()
+            )
             self.assertEqual([(row["channel"], row["status"]) for row in rows], [("email", "failed"), ("telegram", "sent")])
-            legacy_row = get_db().execute(
-                "SELECT 1 FROM telegram_push_log WHERE account_id = ? AND message_id = ?",
-                (account_id, "<dual-message@example.com>"),
-            ).fetchone()
+            legacy_row = (
+                get_db()
+                .execute(
+                    "SELECT 1 FROM telegram_push_log WHERE account_id = ? AND message_id = ?",
+                    (account_id, "<dual-message@example.com>"),
+                )
+                .fetchone()
+            )
             self.assertIsNotNone(legacy_row)
