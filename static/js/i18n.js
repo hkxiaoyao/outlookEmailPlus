@@ -390,9 +390,9 @@
         // 简洁模式自动轮询 - UI 面板词条
         '简洁模式自动轮询': 'Compact Mode Auto Polling',
         '复制邮箱后自动监听': 'Auto-monitor after copying email',
-        '最大监听时长': 'Max Monitoring Duration',
+        '最多轮询次数': 'Max Poll Count',
         '范围：3-60 秒': 'Range: 3-60 seconds',
-        '范围：10-600 秒': 'Range: 10-600 seconds',
+        '范围：0-100 次': 'Range: 0-100 times',
         '简洁模式轮询内存提示': 'Compact mode polling memory note',
         '没有需要重试的失败账号': 'There are no failed accounts to retry',
         '刷新过程中出现错误': 'An error occurred during refresh',

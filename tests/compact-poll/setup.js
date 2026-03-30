@@ -163,8 +163,8 @@ beforeEach(() => {
   global.mailboxViewMode    = 'compact';
   global.isTempEmailGroup   = false;
   global.compactPollEnabled = false;
-  global.compactPollInterval      = 10;
-  global.compactPollMaxDuration   = 60;
+  global.compactPollInterval    = 10;
+  global.compactPollMaxCount    = 5;
 
   // ── 重置 Mock 默认返回值 ──
   mockGetCompactVisibleAccounts.mockReturnValue([]);

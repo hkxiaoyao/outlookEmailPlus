@@ -93,7 +93,7 @@ describe('TC-C01~C05: 事件触发与守卫条件', () => {
   test('TC-C02: compactPollEnabled=true + compact 模式时 email-copied 触发轮询', async () => {
     compactPollEnabled    = true;
     compactPollInterval   = 10;
-    compactPollMaxDuration = 60;
+    compactPollMaxCount    = 5;
 
     // 返回包含目标邮箱的账号列表
     getCompactVisibleAccounts.mockReturnValue([
@@ -170,7 +170,7 @@ describe('TC-C06~C09: 轮询状态管理', () => {
   test('TC-C06: 同一邮箱再次 email-copied 应重置轮询（startTime 更新）', async () => {
     compactPollEnabled    = true;
     compactPollInterval   = 10;
-    compactPollMaxDuration = 60;
+    compactPollMaxCount = 5;
 
     getCompactVisibleAccounts.mockReturnValue([
       { email: 'test@example.com', id: 1 }
@@ -303,10 +303,10 @@ describe('TC-C06~C09: 轮询状态管理', () => {
 describe('TC-C10~C13: 超时与错误处理', () => {
 
   // ── TC-C10 ──────────────────────────────────────────────────────────────
-  test('TC-C10: 达到最大监听时长后应自动停止轮询并显示超时 Toast', async () => {
-    compactPollEnabled     = true;
-    compactPollInterval    = 10;
-    compactPollMaxDuration = 5; // 5 秒超时，方便测试
+  test('TC-C10: 达到最多轮询次数后应自动停止轮询并显示超时 Toast', async () => {
+    compactPollEnabled   = true;
+    compactPollInterval  = 5;
+    compactPollMaxCount  = 2; // 最多 2 次，方便测试
 
     getCompactVisibleAccounts.mockReturnValue([
       { email: 'test@example.com', id: 1 }
@@ -321,10 +321,12 @@ describe('TC-C10~C13: 超时与错误处理', () => {
     window.dispatchEvent(new CustomEvent('email-copied', {
       detail: { email: 'test@example.com' }
     }));
-    await jest.advanceTimersByTimeAsync(200);
+    await jest.advanceTimersByTimeAsync(200); // baseline + 首次 poll（pollCount → 1）
 
-    // 快进 6 秒，触发全局倒计时的超时检测（countdown 每 1 秒检查一次）
-    await jest.advanceTimersByTimeAsync(6000);
+    // 快进 5 秒触发第 2 次 poll（pollCount → 2 = maxCount → 次数检查在 startGlobalCountdown 中触发）
+    await jest.advanceTimersByTimeAsync(5000);
+    // 再快进 1 秒让全局倒计时检测到 pollCount >= maxCount
+    await jest.advanceTimersByTimeAsync(1000);
 
     expect(compactPollMap.has('test@example.com')).toBe(false);
 
@@ -341,7 +343,7 @@ describe('TC-C10~C13: 超时与错误处理', () => {
   test('TC-C11: 连续 3 次请求失败后应自动停止轮询', async () => {
     compactPollEnabled     = true;
     compactPollInterval    = 1; // 1 秒间隔，便于快速触发多次
-    compactPollMaxDuration = 300;
+    compactPollMaxCount = 30;
 
     getCompactVisibleAccounts.mockReturnValue([
       { email: 'test@example.com', id: 1 }
@@ -369,7 +371,7 @@ describe('TC-C10~C13: 超时与错误处理', () => {
   test('TC-C12: 成功请求后 errorCount 应归零，轮询继续', async () => {
     compactPollEnabled     = true;
     compactPollInterval    = 1;
-    compactPollMaxDuration = 300;
+    compactPollMaxCount = 30;
 
     getCompactVisibleAccounts.mockReturnValue([
       { email: 'test@example.com', id: 1 }
@@ -420,7 +422,7 @@ describe('TC-C10~C13: 超时与错误处理', () => {
   test('TC-C13: API 返回 404 应立即停止轮询并提示账号已删除', async () => {
     compactPollEnabled     = true;
     compactPollInterval    = 10;
-    compactPollMaxDuration = 300;
+    compactPollMaxCount = 30;
 
     getCompactVisibleAccounts.mockReturnValue([
       { email: 'test@example.com', id: 1 }
@@ -471,7 +473,7 @@ describe('TC-C14: 防重入锁', () => {
   test('TC-C14: isPolling=true 时定时器触发的 pollSingleEmail 应跳过，fetch 不会多次调用', async () => {
     compactPollEnabled     = true;
     compactPollInterval    = 1; // 1 秒间隔
-    compactPollMaxDuration = 300;
+    compactPollMaxCount = 30;
 
     getCompactVisibleAccounts.mockReturnValue([
       { email: 'test@example.com', id: 1 }
@@ -521,7 +523,7 @@ describe('TC-C15~C16: 发现新邮件处理', () => {
   test('TC-C15: 发现新邮件后应停止轮询、提取验证码并复制到剪贴板', async () => {
     compactPollEnabled     = true;
     compactPollInterval    = 10;
-    compactPollMaxDuration = 300;
+    compactPollMaxCount = 30;
 
     getCompactVisibleAccounts.mockReturnValue([{
       email: 'test@example.com',
@@ -599,7 +601,7 @@ describe('TC-C15~C16: 发现新邮件处理', () => {
   test('TC-C16: 验证码提取失败时应显示"发现新邮件"Toast 并停止轮询', async () => {
     compactPollEnabled     = true;
     compactPollInterval    = 10;
-    compactPollMaxDuration = 300;
+    compactPollMaxCount = 30;
 
     getCompactVisibleAccounts.mockReturnValue([{
       email: 'test@example.com',
@@ -671,7 +673,7 @@ describe('TC-C17~C18: 设置变更即时生效', () => {
   test('TC-C17: applyCompactPollSettings({enabled:false}) 应停止所有正在运行的轮询', async () => {
     compactPollEnabled     = true;
     compactPollInterval    = 10;
-    compactPollMaxDuration = 300;
+    compactPollMaxCount = 30;
 
     getCompactVisibleAccounts.mockReturnValue([
       { email: 'test@example.com', id: 1 }
@@ -691,7 +693,7 @@ describe('TC-C17~C18: 设置变更即时生效', () => {
     expect(compactPollMap.size).toBe(1);
 
     // 关闭功能
-    applyCompactPollSettings({ enabled: false, interval: 10, maxDuration: 60 });
+    applyCompactPollSettings({ enabled: false, interval: 10, maxCount: 5 });
 
     expect(compactPollMap.size).toBe(0);
   });
@@ -700,7 +702,7 @@ describe('TC-C17~C18: 设置变更即时生效', () => {
   test('TC-C18: 修改 compactPollInterval 后应重建定时器（timer handle 不同）', async () => {
     compactPollEnabled     = true;
     compactPollInterval    = 10;
-    compactPollMaxDuration = 300;
+    compactPollMaxCount = 30;
 
     getCompactVisibleAccounts.mockReturnValue([
       { email: 'test@example.com', id: 1 }
@@ -720,7 +722,7 @@ describe('TC-C17~C18: 设置变更即时生效', () => {
     const oldTimer = compactPollMap.get('test@example.com').timer;
 
     // 变更间隔到 5 秒
-    applyCompactPollSettings({ enabled: true, interval: 5, maxDuration: 300 });
+    applyCompactPollSettings({ enabled: true, interval: 5, maxCount: 30 });
 
     const newTimer = compactPollMap.get('test@example.com').timer;
 
@@ -740,7 +742,7 @@ describe('TC-C19~C20: 页面可见性检测', () => {
   test('TC-C19: 页面切到后台应将所有轮询定时器清为 null（暂停）', async () => {
     compactPollEnabled     = true;
     compactPollInterval    = 10;
-    compactPollMaxDuration = 300;
+    compactPollMaxCount = 30;
 
     getCompactVisibleAccounts.mockReturnValue([
       { email: 'test@example.com', id: 1 }
@@ -774,7 +776,7 @@ describe('TC-C19~C20: 页面可见性检测', () => {
   test('TC-C20: 页面切回前台应恢复所有轮询定时器（timer 重新设置）', async () => {
     compactPollEnabled     = true;
     compactPollInterval    = 10;
-    compactPollMaxDuration = 300;
+    compactPollMaxCount = 30;
 
     getCompactVisibleAccounts.mockReturnValue([
       { email: 'test@example.com', id: 1 }

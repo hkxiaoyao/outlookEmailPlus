@@ -654,7 +654,33 @@
                             </div>
                         </div>
 
-                        <!-- 简洁模式自动轮询已与标准自动轮询合并，开启上方"自动轮询"即可同时启用 -->
+                        <!-- 简洁模式自动轮询设置（独立面板） -->
+                        <div style="border-top: 1px solid var(--border-light); margin: 1.5rem 0; padding-top: 1.5rem;">
+                            <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; color: var(--text);">📋 简洁模式自动轮询</h4>
+                            <div class="form-group">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="enableCompactAutoPoll">
+                                    <span class="form-label" style="margin: 0;">启用简洁模式自动轮询</span>
+                                </label>
+                                <div class="form-hint">开启后复制邮箱地址时自动监听新邮件并提取验证码</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">轮询间隔 <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">（每次检查之间的等待时间）</span></label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="number" class="form-input" id="compactPollInterval" min="3" max="60" value="10" placeholder="10" style="max-width: 120px;">
+                                    <span style="font-size: 0.88rem; color: var(--text-muted); font-weight: 500;">秒</span>
+                                </div>
+                                <div class="form-hint">范围：3-60 秒，建议设置为 5-10 秒</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">最多轮询次数 <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">（达到次数后自动停止）</span></label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="number" class="form-input" id="compactPollMaxCount" min="0" max="100" value="5" placeholder="5" style="max-width: 120px;">
+                                    <span style="font-size: 0.88rem; color: var(--text-muted); font-weight: 500;">次</span>
+                                </div>
+                                <div class="form-hint">范围：0-100 次，设置为 0 表示持续轮询</div>
+                            </div>
+                        </div>
                         <!-- 邮件通知设置 -->
                         <div style="border-top: 1px solid var(--border-light); margin: 1.5rem 0; padding-top: 1.5rem;">
                             <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; color: var(--text);">✉️ Email 通知</h4>

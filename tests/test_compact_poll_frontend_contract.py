@@ -6,7 +6,7 @@
   - JS 变量声明与函数定义
   - CSS 样式类
   - 事件监听
-  注：简洁模式轮询已与标准自动轮询合并，不再有独立的设置面板。
+  注：简洁模式轮询拥有独立的设置面板（开关 + 间隔 + 最多次数）。
 """
 
 from __future__ import annotations
@@ -37,21 +37,19 @@ class CompactPollFrontendContractTests(unittest.TestCase):
             resp.close()
 
     # ──────────────────────────────────────────────────────
-    # TC-B01：index.html 不再包含独立的简洁模式轮询设置面板（已合并到标准轮询）
+    # TC-B01：index.html 包含简洁模式独立轮询设置面板
     # ──────────────────────────────────────────────────────
 
     def test_index_html_contains_compact_poll_settings_panel(self):
-        """简洁模式轮询设置已合并到标准轮询，index.html 不应再有独立的 compact poll 输入框"""
+        """index.html 应包含简洁模式独立轮询设置面板（开关 + 间隔 + 最多次数）"""
         client = self.app.test_client()
         self._login(client)
         html = self._get_text(client, "/")
 
-        # 独立的 compact poll 面板已移除
-        self.assertNotIn('id="enableCompactAutoPoll"', html)
-        self.assertNotIn('id="compactPollInterval"', html)
-        self.assertNotIn('id="compactPollMaxDuration"', html)
-        # 保留了合并说明注释
-        self.assertIn("简洁模式自动轮询已与标准自动轮询合并", html)
+        # 独立的 compact poll 面板已恢复
+        self.assertIn('id="enableCompactAutoPoll"', html)
+        self.assertIn('id="compactPollInterval"', html)
+        self.assertIn('id="compactPollMaxCount"', html)
 
     # ──────────────────────────────────────────────────────
     # TC-B02：i18n.js 包含简洁模式运行时 UI 文本（按钮文本、Toast 等）
@@ -72,13 +70,13 @@ class CompactPollFrontendContractTests(unittest.TestCase):
     # ──────────────────────────────────────────────────────
 
     def test_main_js_declares_compact_poll_variables(self):
-        """main.js 应声明 compactPollEnabled / compactPollInterval / compactPollMaxDuration"""
+        """main.js 应声明 compactPollEnabled / compactPollInterval / compactPollMaxCount"""
         client = self.app.test_client()
         js = self._get_text(client, "/static/js/main.js")
 
         self.assertIn("let compactPollEnabled = false;", js)
         self.assertIn("let compactPollInterval = 10;", js)
-        self.assertIn("let compactPollMaxDuration = 60;", js)
+        self.assertIn("let compactPollMaxCount = 5;", js)
 
     # ──────────────────────────────────────────────────────
     # TC-B04：main.js 包含 applyCompactPollSettings 调用
@@ -198,8 +196,8 @@ class CompactPollFrontendContractTests(unittest.TestCase):
             "Compact Mode Auto Polling",
             "Auto-monitor after copying email",
             "Range: 3-60 seconds",
-            "Range: 10-600 seconds",
-            "Max Monitoring Duration",
+            "Range: 0-100 times",
+            "Max Poll Count",
         ]
         for text in required_translations:
             self.assertIn(text, js, f"i18n.js 缺少翻译词条: {text!r}")

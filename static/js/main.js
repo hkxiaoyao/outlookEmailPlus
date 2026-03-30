@@ -36,7 +36,7 @@
         // 简洁模式自动轮询配置
         let compactPollEnabled = false;
         let compactPollInterval = 10;
-        let compactPollMaxDuration = 60;
+        let compactPollMaxCount = 5;
 
         // 导航状态
         let currentPage = 'dashboard';
@@ -1825,12 +1825,18 @@ ${details}
                     document.getElementById('pollingInterval').value = String(parseIntegerSetting(data.settings.polling_interval, 10));
                     document.getElementById('pollingCount').value = String(parseIntegerSetting(data.settings.polling_count, 5));
 
-                    // 简洁模式自动轮询跟标准轮询同步（共用一套设置）
-                    compactPollEnabled = enablePolling;
-                    compactPollInterval = parseIntegerSetting(data.settings.polling_interval, 10);
-                    compactPollMaxDuration = parseIntegerSetting(data.settings.polling_count, 5) * compactPollInterval;
+                    // 简洁模式自动轮询独立设置
+                    compactPollEnabled  = isAutoPollingEnabledSetting(data.settings.enable_compact_auto_poll);
+                    compactPollInterval = parseIntegerSetting(data.settings.compact_poll_interval, 10);
+                    compactPollMaxCount = parseIntegerSetting(data.settings.compact_poll_max_count, 5);
+                    const cPollEnabledEl2   = document.getElementById('enableCompactAutoPoll');
+                    const cPollIntervalEl2  = document.getElementById('compactPollInterval');
+                    const cPollMaxCountEl2  = document.getElementById('compactPollMaxCount');
+                    if (cPollEnabledEl2)  cPollEnabledEl2.checked = compactPollEnabled;
+                    if (cPollIntervalEl2) cPollIntervalEl2.value  = String(compactPollInterval);
+                    if (cPollMaxCountEl2) cPollMaxCountEl2.value  = String(compactPollMaxCount);
                     if (typeof applyCompactPollSettings === 'function') {
-                        applyCompactPollSettings({ enabled: compactPollEnabled, interval: compactPollInterval, maxDuration: compactPollMaxDuration });
+                        applyCompactPollSettings({ enabled: compactPollEnabled, interval: compactPollInterval, maxCount: compactPollMaxCount });
                     }
 
                     // 加载 Telegram 推送设置
@@ -2131,7 +2137,26 @@ ${details}
             settings.email_notification_enabled = emailNotificationEnabled;
             settings.email_notification_recipient = emailNotificationRecipient;
 
-            // 简洁模式轮询配置不再单独收集，跟标准轮询设置走
+            // 简洁模式轮询独立配置
+            const enableCompactPollEl  = document.getElementById('enableCompactAutoPoll');
+            const cPollIntervalEl      = document.getElementById('compactPollInterval');
+            const cPollMaxCountEl      = document.getElementById('compactPollMaxCount');
+            const enableCompactPoll    = enableCompactPollEl ? enableCompactPollEl.checked : false;
+            const cPollIntervalVal     = cPollIntervalEl    ? parseInt(cPollIntervalEl.value)    : NaN;
+            const cPollMaxCountVal     = cPollMaxCountEl    ? parseInt(cPollMaxCountEl.value)    : NaN;
+
+            if (isNaN(cPollIntervalVal) || cPollIntervalVal < 3 || cPollIntervalVal > 60) {
+                showToast(translateAppTextLocal('简洁模式轮询间隔必须在 3-60 秒之间'), 'error');
+                return;
+            }
+            if (isNaN(cPollMaxCountVal) || cPollMaxCountVal < 0 || cPollMaxCountVal > 100) {
+                showToast(translateAppTextLocal('简洁模式轮询次数必须在 0-100 之间（0 表示持续轮询）'), 'error');
+                return;
+            }
+
+            settings.enable_compact_auto_poll   = enableCompactPoll;
+            settings.compact_poll_interval      = cPollIntervalVal;
+            settings.compact_poll_max_count     = cPollMaxCountVal;
 
             // Telegram 推送配置
             const tgBotTokenEl = document.getElementById('telegramBotToken');
@@ -2166,14 +2191,12 @@ ${details}
 
                 if (data.success) {
                     applyPollingSettings(settings, { restart: true });
-                    // 简洁模式轮询跟着标准设置同步
-                    const savedInterval = isNaN(pInterval) ? 10 : pInterval;
-                    const savedCount = isNaN(pCount) ? 5 : pCount;
-                    compactPollEnabled = enablePolling;
-                    compactPollInterval = savedInterval;
-                    compactPollMaxDuration = savedCount * savedInterval;
+                    // 简洁模式轮询独立同步
+                    compactPollEnabled  = enableCompactPoll;
+                    compactPollInterval = isNaN(cPollIntervalVal) ? 10 : cPollIntervalVal;
+                    compactPollMaxCount = isNaN(cPollMaxCountVal) ? 5  : cPollMaxCountVal;
                     if (typeof applyCompactPollSettings === 'function') {
-                        applyCompactPollSettings({ enabled: compactPollEnabled, interval: compactPollInterval, maxDuration: compactPollMaxDuration });
+                        applyCompactPollSettings({ enabled: compactPollEnabled, interval: compactPollInterval, maxCount: compactPollMaxCount });
                     }
                     showToast(pickApiMessage(data, '设置已保存，重启应用后生效', 'Settings saved successfully'), 'success');
                     hideSettingsModal();

@@ -237,7 +237,7 @@
                 ].filter(Boolean).join(' · ');
 
                 return `
-                    <div class="mail-row ${isChecked ? 'is-selected' : ''}">
+                    <div class="mail-row ${isChecked ? 'is-selected' : ''}" data-email="${escapeHtml(account.email || '')}">
                         <div class="select-cell" data-label="${escapeHtml(translateCompactText('选择'))}">
                             <input
                                 type="checkbox"
@@ -318,7 +318,7 @@
         // Map 实例，key = email -> state
         var compactPollMap = new Map();
 
-        // 全局倒计时定时器（每秒更新 UI 并检测超时）
+        // 全局轮询计数检查定时器（每秒更新 UI 并检测次数上限）
         var compactPollCountdownTimer = null;
 
         // ── 内部辅助函数 ──────────────────────────────────────────────
@@ -332,6 +332,7 @@
         function _handlePollError(email, state) {
             state.isPolling = false;
             if (!compactPollMap.has(email)) return;
+            state.pollCount = (state.pollCount || 0) + 1;
             state.errorCount = (state.errorCount || 0) + 1;
             if (state.errorCount >= 3) {
                 stopCompactAutoPoll(email, compactT('拉取失败，已停止监听'), 'info');
@@ -423,9 +424,8 @@
         function reapplyAllCompactPollUI() {
             compactPollMap.forEach(function(state, email) {
                 if (!state) return;
-                var elapsed = Date.now() - state.startTime;
-                var remaining = Math.max(0, state.maxDuration * 1000 - elapsed);
-                updateCompactPollUI(email, 'polling', Math.ceil(remaining / 1000));
+                var remaining = state.maxCount > 0 ? Math.max(0, state.maxCount - state.pollCount) : 0;
+                updateCompactPollUI(email, 'polling', remaining);
             });
         }
 
@@ -473,13 +473,13 @@
                 }
                 compactPollMap.forEach(function(state, email) {
                     if (!state) return;
-                    var elapsed = Date.now() - state.startTime;
-                    if (elapsed >= state.maxDuration * 1000) {
+                    // maxCount > 0 表示有次数限制；已达上限则停止
+                    if (state.maxCount > 0 && state.pollCount >= state.maxCount) {
                         stopCompactAutoPoll(email, compactT('监听超时，未检测到新邮件'), 'info');
                         return;
                     }
-                    var remaining = Math.max(0, state.maxDuration * 1000 - elapsed);
-                    updateCompactPollUI(email, 'polling', Math.ceil(remaining / 1000));
+                    var remaining = state.maxCount > 0 ? Math.max(0, state.maxCount - state.pollCount) : 0;
+                    updateCompactPollUI(email, 'polling', remaining);
                 });
             }, 1000);
         }
@@ -490,9 +490,8 @@
             // 防重入锁：上次 poll 尚未完成时跳过本次
             if (state.isPolling) return;
 
-            // 超时双重检查（全局倒计时已处理，此处兜底）
-            var elapsed = Date.now() - state.startTime;
-            if (elapsed >= state.maxDuration * 1000) {
+            // 次数上限双重检查（全局倒计时已处理，此处兜底）
+            if (state.maxCount > 0 && state.pollCount >= state.maxCount) {
                 stopCompactAutoPoll(email, compactT('监听超时，未检测到新邮件'), 'info');
                 return;
             }
@@ -559,8 +558,9 @@
                         return;
                     }
 
-                    // 成功：重置错误计数，更新 UI
+                    // 成功：重置错误计数，递增轮询次数，更新 UI
                     state.errorCount = 0;
+                    state.pollCount = (state.pollCount || 0) + 1;
                     if (firstSummary) updateSingleRowFromCache(email, firstSummary);
 
                     // 检测新邮件（与 baseline 比对）
@@ -602,16 +602,18 @@
             }
 
             var intervalSec = (opts && opts.interval) || (typeof compactPollInterval !== 'undefined' ? compactPollInterval : 10);
-            var maxDuration  = (opts && opts.maxDuration) || (typeof compactPollMaxDuration !== 'undefined' ? compactPollMaxDuration : 60);
+            var maxCount     = (opts && opts.maxCount  !== undefined ? opts.maxCount  : undefined);
+            if (maxCount === undefined) maxCount = (typeof compactPollMaxCount !== 'undefined' ? compactPollMaxCount : 5);
 
             var state = {
                 timer:       null,
                 startTime:   Date.now(),
                 baselineIds: new Set(),
                 errorCount:  0,
+                pollCount:   0,
                 isPolling:   false,
                 intervalSec: intervalSec,
-                maxDuration: maxDuration,
+                maxCount:    maxCount,
                 countdownTimer: null
             };
 
@@ -641,8 +643,8 @@
                 // 启动定时轮询
                 state.timer = setInterval(function() { pollSingleEmail(email, state); }, state.intervalSec * 1000);
 
-                // 更新 UI 为监听中
-                updateCompactPollUI(email, 'polling', state.maxDuration);
+                // 更新 UI 为监听中（显示剩余次数）
+                updateCompactPollUI(email, 'polling', state.maxCount);
                 startGlobalCountdown();
 
                 // baseline 完成后立即执行一次 poll（延迟 COMPACT_POLL_INITIAL_DELAY_MS 保证
@@ -656,7 +658,7 @@
         function applyCompactPollSettingsToRunningPolls(newSettings) {
             if (!newSettings) return;
             var ni = newSettings.interval;
-            var nm = newSettings.maxDuration;
+            var nm = newSettings.maxCount;
             compactPollMap.forEach(function(state, email) {
                 if (!state) return;
                 if (ni && ni !== state.intervalSec) {
@@ -664,15 +666,15 @@
                     state.intervalSec = ni;
                     state.timer = setInterval(function() { pollSingleEmail(email, state); }, ni * 1000);
                 }
-                if (nm) state.maxDuration = nm;
+                if (nm !== undefined && nm !== null) state.maxCount = nm;
             });
         }
 
         function applyCompactPollSettings(settings) {
             if (!settings) return;
-            if (typeof compactPollEnabled !== 'undefined')     compactPollEnabled     = settings.enabled !== undefined ? settings.enabled : compactPollEnabled;
-            if (typeof compactPollInterval !== 'undefined')    compactPollInterval    = settings.interval    || compactPollInterval;
-            if (typeof compactPollMaxDuration !== 'undefined') compactPollMaxDuration = settings.maxDuration || compactPollMaxDuration;
+            if (typeof compactPollEnabled !== 'undefined')  compactPollEnabled  = settings.enabled !== undefined ? settings.enabled : compactPollEnabled;
+            if (typeof compactPollInterval !== 'undefined') compactPollInterval = settings.interval  || compactPollInterval;
+            if (typeof compactPollMaxCount !== 'undefined') compactPollMaxCount = settings.maxCount  !== undefined ? settings.maxCount : compactPollMaxCount;
             if (settings.enabled === false) {
                 stopAllCompactAutoPolls();
                 return;

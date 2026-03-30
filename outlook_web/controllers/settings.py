@@ -212,9 +212,7 @@ def api_get_settings() -> Any:
         )
         == "true",
         "compact_poll_interval": int(all_settings.get("compact_poll_interval", "10")),
-        "compact_poll_max_duration": int(
-            all_settings.get("compact_poll_max_duration", "60")
-        ),
+        "compact_poll_max_count": int(all_settings.get("compact_poll_max_count", "5")),
         "email_notification_enabled": all_settings.get(
             "email_notification_enabled", "false"
         ).lower()
@@ -880,16 +878,16 @@ def api_update_settings() -> Any:
         except (ValueError, TypeError):
             errors.append("简洁模式轮询间隔必须是数字")
 
-    if "compact_poll_max_duration" in data:
+    if "compact_poll_max_count" in data:
         try:
-            compact_duration = int(data["compact_poll_max_duration"])
-            if compact_duration < 10 or compact_duration > 600:
-                errors.append("最大监听时长必须在 10-600 秒之间")
+            compact_max_count = int(data["compact_poll_max_count"])
+            if compact_max_count < 0 or compact_max_count > 100:
+                errors.append("简洁模式最多轮询次数必须在 0-100 之间")
             else:
-                queue_setting_update("compact_poll_max_duration", str(compact_duration))
-                updated.append("简洁轮询时长")
+                queue_setting_update("compact_poll_max_count", str(compact_max_count))
+                updated.append("简洁轮询次数")
         except (ValueError, TypeError):
-            errors.append("最大监听时长必须是数字")
+            errors.append("简洁模式最多轮询次数必须是数字")
 
     # Telegram 推送配置
     if "telegram_poll_interval" in data:
