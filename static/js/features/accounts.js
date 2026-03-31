@@ -142,17 +142,11 @@
             const input = document.getElementById('accountInput');
             const hint = document.getElementById('accountFormatHint');
             const customFields = document.getElementById('customImapFields');
-            const getTokenBtn = document.getElementById('getRefreshTokenBtnInAdd');
             const duplicateGroup = document.getElementById('duplicateStrategyGroup');
             const fallbackGroup = document.getElementById('fallbackImapGroup');
             const importGroupSelect = document.getElementById('importGroupSelect');
 
             if (!input || !hint || !customFields) return;
-
-            // "获取Token"按钮仅 Outlook 类型可见
-            if (getTokenBtn) {
-                getTokenBtn.style.display = (p === 'outlook') ? '' : 'none';
-            }
 
             // 重置 auto 模式特有的 UI
             if (duplicateGroup) duplicateGroup.style.display = 'none';

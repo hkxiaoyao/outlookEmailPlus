@@ -141,12 +141,6 @@
                 }
             }
 
-            // 显示「注册Outlook账号」按钮（仅在非临时邮箱分组时）
-            const registerBtn = document.getElementById('registerOutlookBtn');
-            if (registerBtn) {
-                registerBtn.style.display = isTempEmailGroup ? 'none' : '';
-            }
-
             // 更新底部按钮
             updateAccountPanelFooter();
 

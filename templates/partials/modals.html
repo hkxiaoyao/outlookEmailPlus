@@ -125,7 +125,6 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="hideAddAccountModal()">取消</button>
-                <button class="btn btn-primary" id="getRefreshTokenBtnInAdd" onclick="showGetRefreshTokenModal()" style="background-color: #0078d4;">🔑 获取 Token</button>
                 <button class="btn btn-primary" onclick="addAccount()">导入</button>
             </div>
         </div>
@@ -536,70 +535,6 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="hideRefreshErrorModal()">关闭</button>
                 <button class="btn btn-primary" id="editAccountFromErrorBtn">编辑账号</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 获取 Refresh Token 模态框 -->
-    <div class="modal" id="getRefreshTokenModal" onclick="if(event.target === this) hideGetRefreshTokenModal()">
-        <div class="modal-content" style="width: 600px;">
-            <div class="modal-header">
-                <h3>🔑 获取 Refresh Token</h3>
-                <button class="modal-close" onclick="hideGetRefreshTokenModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">步骤 0: 输入当前系统登录密码</label>
-                    <input type="password" class="form-input" id="oauthVerifyPassword" placeholder="用于本系统二次验证，不是微软邮箱密码">
-                    <div class="form-hint">只有在返回 <code>refresh_token</code> 前才会使用这一步校验，避免敏感凭据被直接明文导出。</div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">当前 OAuth 应用配置</label>
-                    <div style="display: grid; gap: 8px;">
-                        <input type="text" class="form-input" id="oauthClientIdInput" readonly
-                            style="font-size: 12px; font-family: monospace;">
-                        <input type="text" class="form-input" id="oauthRedirectUriInput" readonly
-                            style="font-size: 12px; font-family: monospace;">
-                    </div>
-                    <div class="form-hint">`client_id` 是 Azure / Microsoft OAuth 应用级配置，不是个人邮箱登录后自动生成。`refresh_token` 需要通过下面的微软授权流程换取。</div>
-                    <div class="form-hint" id="oauthRedirectUriWarning" style="display:none; color: #b45309;"></div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">步骤 1: 访问授权链接</label>
-                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                        <input type="text" class="form-input" id="authUrlInput" readonly
-                            style="flex: 1; font-size: 12px; font-family: monospace;">
-                        <button class="btn btn-secondary" onclick="copyAuthUrl()" style="white-space: nowrap;">📋
-                            复制</button>
-                        <button class="btn btn-primary" onclick="openAuthUrl()" style="white-space: nowrap;">🔗
-                            打开</button>
-                    </div>
-                    <div class="form-hint">点击“打开”后会跳到微软授权页。授权成功时，系统会优先自动接收回跳结果；如果浏览器拦截弹窗，再手工复制回跳地址。</div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">步骤 2: 粘贴授权后的完整 URL</label>
-                    <textarea class="form-textarea" id="redirectUrlInput"
-                        placeholder="如果授权窗口没有自动回填，请把浏览器回跳后的完整 URL 粘贴到这里；也支持直接粘贴 ?code=... 这一段 query"
-                        style="height: 80px; font-size: 12px; font-family: monospace;"></textarea>
-                    <div class="form-hint">回跳 URL 必须和上面显示的 <code>redirect_uri</code> 一致，例如：<span id="oauthRedirectUriExample">http://localhost:8080/oauth/callback?code=xxxxx&state=12345</span></div>
-                </div>
-
-                <div class="form-group" id="refreshTokenResult" style="display: none;">
-                    <label class="form-label">✅ 账号信息（已获取成功）</label>
-                    <textarea class="form-textarea" id="refreshTokenOutput" readonly
-                        style="height: 100px; font-size: 12px; font-family: monospace; background-color: #f0f9ff; border-color: #0078d4;"></textarea>
-                    <div class="form-hint" style="color: #0078d4;">
-                        <strong>格式说明：</strong>邮箱----密码----client_id----refresh_token<br>
-                        请将"your@outlook.com"和"yourpassword"替换为您的实际邮箱和密码，然后复制整行内容到"导入邮箱"中使用
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="hideGetRefreshTokenModal()">关闭</button>
-                <button class="btn btn-primary" id="exchangeTokenBtn" onclick="exchangeToken()">换取 Token</button>
             </div>
         </div>
     </div>

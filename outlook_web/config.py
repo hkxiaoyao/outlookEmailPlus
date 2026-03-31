@@ -22,7 +22,10 @@ def require_secret_key() -> str:
 
 
 def get_database_path() -> str:
-    return _getenv("DATABASE_PATH", "data/outlook_accounts.db") or "data/outlook_accounts.db"
+    return (
+        _getenv("DATABASE_PATH", "data/outlook_accounts.db")
+        or "data/outlook_accounts.db"
+    )
 
 
 def get_login_password_default() -> str:
@@ -30,7 +33,10 @@ def get_login_password_default() -> str:
 
 
 def get_gptmail_base_url() -> str:
-    return _getenv("GPTMAIL_BASE_URL", "https://mail.chatgpt.org.uk") or "https://mail.chatgpt.org.uk"
+    return (
+        _getenv("GPTMAIL_BASE_URL", "https://mail.chatgpt.org.uk")
+        or "https://mail.chatgpt.org.uk"
+    )
 
 
 def get_gptmail_api_key_default() -> str:
@@ -47,20 +53,13 @@ def get_temp_mail_api_key_default() -> str:
     return get_gptmail_api_key_default()
 
 
-def get_oauth_client_id() -> str:
-    return _getenv("OAUTH_CLIENT_ID", "24d9a0ed-8787-4584-883c-2fd79308940a") or "24d9a0ed-8787-4584-883c-2fd79308940a"
-
-
-def get_oauth_redirect_uri(default: str | None = None) -> str:
-    fallback = default or "http://localhost:8080"
-    return _getenv("OAUTH_REDIRECT_URI", fallback) or fallback
-
-
 def env_true(key: str, default: bool) -> bool:
     """
     与旧实现保持一致：只有值为 'true'（忽略大小写）才视为 True；其它值均为 False。
     """
-    value = _getenv(key, "true" if default else "false") or ("true" if default else "false")
+    value = _getenv(key, "true" if default else "false") or (
+        "true" if default else "false"
+    )
     return value.lower() == "true"
 
 

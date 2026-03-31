@@ -153,7 +153,6 @@ class V190FrontendContractTests(unittest.TestCase):
             "Cron 表达式",
             "📨 收件箱",
             "⚠️ 垃圾邮件",
-            "🔑 获取 Token",
             "🔔 推送",
             "QQ邮箱",
             "163邮箱",
@@ -243,28 +242,6 @@ class V190FrontendContractTests(unittest.TestCase):
         self.assertIn("translateAppTextLocal('【用户错误信息】')", main_js)
         self.assertIn("translateAppTextLocal('【错误详情】')", main_js)
         self.assertIn("translateAppTextLocal('【技术堆栈/细节】')", main_js)
-
-    def test_outlook_oauth_modal_uses_local_verify_token_contract_and_explains_client_id(
-        self,
-    ):
-        client = self.app.test_client()
-        self._login(client)
-        main_js = self._get_text(client, "/static/js/main.js")
-        index_html = self._get_text(client, "/")
-
-        self.assertIn("fetch('/api/export/verify'", main_js)
-        self.assertIn("verify_token: verifyData.verify_token", main_js)
-        self.assertIn("window.addEventListener('message'", main_js)
-        self.assertIn("payload.type !== 'outlook-oauth-callback'", main_js)
-        self.assertIn(
-            "event.source?.postMessage({ type: 'outlook-oauth-callback-ack' }, event.origin);",
-            main_js,
-        )
-        self.assertIn("handleApiError(data, '获取授权链接失败');", main_js)
-        self.assertIn("state=<generated-by-system>", main_js)
-        self.assertNotIn("state=12345", main_js)
-        self.assertIn("Azure / Microsoft OAuth 应用级配置", index_html)
-        self.assertIn("用于本系统二次验证，不是微软邮箱密码", index_html)
 
     def test_frontend_polling_settings_preserve_zero_value(self):
         client = self.app.test_client()
