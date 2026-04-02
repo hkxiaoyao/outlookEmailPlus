@@ -52,7 +52,13 @@ def _build_account_credential_decrypt_failed_response(account: dict[str, Any]):
     if not credential_errors:
         return None
 
-    fields = sorted({str(item.get("field") or "").strip() for item in credential_errors if item.get("field")})
+    fields = sorted(
+        {
+            str(item.get("field") or "").strip()
+            for item in credential_errors
+            if item.get("field")
+        }
+    )
     details = {
         "fields": fields,
         "errors": credential_errors,
@@ -93,7 +99,9 @@ def api_get_emails(email_addr: str) -> Any:
     # PRD-00005 / FD-00005 / TDD-00005：按 account_type 路由分发（Outlook 链路保持原样，IMAP 走通用 IMAP 服务）
     account_type = (account.get("account_type") or "outlook").strip().lower()
     if account_type != "imap":
-        decrypt_error_response = _build_account_credential_decrypt_failed_response(account)
+        decrypt_error_response = _build_account_credential_decrypt_failed_response(
+            account
+        )
         if decrypt_error_response:
             return decrypt_error_response
 
@@ -499,7 +507,9 @@ def api_extract_verification(email_addr: str) -> Any:
     # PRD-00005：IMAP 账号验证码提取走 IMAP（Generic）→ 详情 → extractor；Outlook 保持原 Graph→IMAP XOAUTH2 回退链
     account_type = (account.get("account_type") or "outlook").strip().lower()
     if account_type != "imap":
-        decrypt_error_response = _build_account_credential_decrypt_failed_response(account)
+        decrypt_error_response = _build_account_credential_decrypt_failed_response(
+            account
+        )
         if decrypt_error_response:
             return decrypt_error_response
 
@@ -859,11 +869,19 @@ def api_extract_verification(email_addr: str) -> Any:
 
 
 def _parse_external_common_args(*, default_since_minutes: int | None = None) -> dict:
-    """解析 external API 通用 query 参数（按 TDD-00008 做基础校验）。"""
+    """解析 external API 通用 query 参数（按 TDD-00008 做基础校验）。
+
+    PR#27 新增：支持 claim_token 参数。若提供 claim_token，则从领取上下文中
+    推断 email 和 baseline_timestamp，并优先使用（覆盖 email 参数和 since_minutes）。
+    """
+    claim_token = (request.args.get("claim_token") or "").strip() or None
     email_addr = (request.args.get("email") or "").strip()
-    if not email_addr or "@" not in email_addr:
-        raise external_api_service.InvalidParamError("email 参数无效")
-    external_api_service.ensure_external_email_access(email_addr)
+
+    # PR#27: 使用 resolve_external_mail_scope 统一处理 claim_token + email
+    email_addr, baseline_timestamp = external_api_service.resolve_external_mail_scope(
+        email_addr if email_addr else None,
+        claim_token,
+    )
 
     folder = (request.args.get("folder") or "inbox").strip().lower() or "inbox"
     if folder not in {"inbox", "junkemail", "deleteditems"}:
@@ -905,6 +923,8 @@ def _parse_external_common_args(*, default_since_minutes: int | None = None) -> 
         "from_contains": (request.args.get("from_contains") or "").strip(),
         "subject_contains": (request.args.get("subject_contains") or "").strip(),
         "since_minutes": since_minutes,
+        "claim_token": claim_token,
+        "baseline_timestamp": baseline_timestamp,
     }
 
 
@@ -965,6 +985,11 @@ def api_external_get_messages() -> Any:
             from_contains=args["from_contains"],
             subject_contains=args["subject_contains"],
             since_minutes=args["since_minutes"],
+            baseline_timestamp=args.get("baseline_timestamp"),
+        )
+        external_api_service.record_claim_read_context(
+            claim_token=args.get("claim_token"),
+            email_addr=args["email"],
         )
 
         external_api_service.audit_external_api_access(
@@ -1011,6 +1036,11 @@ def api_external_get_latest_message() -> Any:
             from_contains=args["from_contains"],
             subject_contains=args["subject_contains"],
             since_minutes=args["since_minutes"],
+            baseline_timestamp=args.get("baseline_timestamp"),
+        )
+        external_api_service.record_claim_read_context(
+            claim_token=args.get("claim_token"),
+            email_addr=args["email"],
         )
         external_api_service.audit_external_api_access(
             action="external_api_access",
@@ -1147,6 +1177,7 @@ def api_external_get_verification_code() -> Any:
             code_regex=code_regex,
             code_length=code_length,
             code_source=code_source,
+            baseline_timestamp=args.get("baseline_timestamp"),
         )
         if not result.get("verification_code"):
             raise external_api_service.VerificationCodeNotFoundError(
@@ -1204,6 +1235,7 @@ def api_external_get_verification_link() -> Any:
             from_contains=args["from_contains"],
             subject_contains=args["subject_contains"],
             since_minutes=args["since_minutes"],
+            baseline_timestamp=args.get("baseline_timestamp"),
         )
         if not result.get("verification_link"):
             raise external_api_service.VerificationLinkNotFoundError(
@@ -1260,6 +1292,7 @@ def api_external_wait_message() -> Any:
                 from_contains=args["from_contains"],
                 subject_contains=args["subject_contains"],
                 since_minutes=args["since_minutes"],
+                baseline_timestamp=args.get("baseline_timestamp"),
             )
             external_api_service.audit_external_api_access(
                 action="external_api_access",
@@ -1279,6 +1312,7 @@ def api_external_wait_message() -> Any:
                 from_contains=args["from_contains"],
                 subject_contains=args["subject_contains"],
                 since_minutes=args["since_minutes"],
+                baseline_timestamp=args.get("baseline_timestamp"),
             )
             external_api_service.audit_external_api_access(
                 action="external_api_access",
@@ -1317,7 +1351,9 @@ def api_external_get_probe_status(probe_id: str) -> Any:
     """P2: 查询异步探测状态与结果"""
     try:
         result = external_api_service.get_probe_status(probe_id)
-        external_api_service.ensure_external_email_access(result.get("email") or "", allow_finished=True)
+        external_api_service.ensure_external_email_access(
+            result.get("email") or "", allow_finished=True
+        )
         if result.get("status") == "cancelled":
             external_api_service.audit_external_api_access(
                 action="external_api_access",

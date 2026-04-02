@@ -84,6 +84,61 @@ class TestDomainProviderMap(unittest.TestCase):
         keys = [p["key"] for p in providers]
         self.assertEqual(keys.count("auto"), 1)
 
+    # ── PR#27 新增：provider_supports_email_domain / extract_email_domain 测试 ──
+
+    def test_extract_email_domain_basic(self):
+        from outlook_web.services.providers import extract_email_domain
+
+        self.assertEqual(extract_email_domain("user@outlook.com"), "outlook.com")
+        self.assertEqual(extract_email_domain("USER@GMAIL.COM"), "gmail.com")
+        self.assertEqual(extract_email_domain("x@a.b.c"), "a.b.c")
+        self.assertEqual(extract_email_domain("no-at-sign"), "")
+        self.assertEqual(extract_email_domain(""), "")
+
+    def test_provider_supports_email_domain_public_domains(self):
+        from outlook_web.services.providers import provider_supports_email_domain
+
+        self.assertTrue(provider_supports_email_domain("outlook", "outlook.com"))
+        self.assertTrue(provider_supports_email_domain("outlook", "hotmail.com"))
+        self.assertTrue(provider_supports_email_domain("gmail", "gmail.com"))
+        self.assertTrue(provider_supports_email_domain("qq", "qq.com"))
+        self.assertTrue(provider_supports_email_domain("qq", "foxmail.com"))
+        self.assertFalse(provider_supports_email_domain("gmail", "outlook.com"))
+        self.assertFalse(provider_supports_email_domain("qq", "gmail.com"))
+
+    def test_provider_supports_email_domain_enterprise_outlook(self):
+        from outlook_web.services.providers import provider_supports_email_domain
+
+        # 企业 onmicrosoft.com 应被 outlook provider 支持
+        self.assertTrue(
+            provider_supports_email_domain("outlook", "myorg.onmicrosoft.com")
+        )
+        self.assertTrue(
+            provider_supports_email_domain("outlook", "corp.onmicrosoft.com")
+        )
+        # 非 outlook provider 不支持
+        self.assertFalse(
+            provider_supports_email_domain("gmail", "myorg.onmicrosoft.com")
+        )
+
+    def test_provider_supports_email_domain_edge_cases(self):
+        from outlook_web.services.providers import provider_supports_email_domain
+
+        self.assertFalse(provider_supports_email_domain("", "outlook.com"))
+        self.assertFalse(provider_supports_email_domain("outlook", ""))
+        self.assertFalse(provider_supports_email_domain("outlook", None))
+
+    def test_get_provider_domains(self):
+        from outlook_web.services.providers import get_provider_domains
+
+        outlook_domains = get_provider_domains("outlook")
+        self.assertIn("outlook.com", outlook_domains)
+        self.assertIn("hotmail.com", outlook_domains)
+        gmail_domains = get_provider_domains("gmail")
+        self.assertIn("gmail.com", gmail_domains)
+        unknown_domains = get_provider_domains("nonexistent")
+        self.assertEqual(unknown_domains, [])
+
 
 if __name__ == "__main__":
     unittest.main()

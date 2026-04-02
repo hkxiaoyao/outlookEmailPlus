@@ -63,9 +63,14 @@ def api_system_health() -> Any:
             except Exception:
                 heartbeat_age_seconds = None
 
-        scheduler_enabled = settings_repo.get_setting("enable_scheduled_refresh", "true").lower() == "true"
+        scheduler_enabled = (
+            settings_repo.get_setting("enable_scheduled_refresh", "true").lower()
+            == "true"
+        )
         scheduler_autostart = config.get_scheduler_autostart_default()
-        scheduler_healthy = (heartbeat_age_seconds is not None) and (heartbeat_age_seconds <= 120)
+        scheduler_healthy = (heartbeat_age_seconds is not None) and (
+            heartbeat_age_seconds <= 120
+        )
 
         # 刷新锁/运行中
         lock_row = conn.execute(
@@ -76,7 +81,9 @@ def api_system_health() -> Any:
         """,
             (REFRESH_LOCK_NAME,),
         ).fetchone()
-        locked = bool(lock_row and lock_row["expires_at"] and lock_row["expires_at"] > time.time())
+        locked = bool(
+            lock_row and lock_row["expires_at"] and lock_row["expires_at"] > time.time()
+        )
 
         running_run = conn.execute("""
             SELECT id, trigger_source, started_at, trace_id
@@ -158,7 +165,8 @@ def api_system_diagnostics() -> Any:
 
         # 数据库升级状态（可验证）
         schema_version_row = conn.execute(
-            "SELECT value, updated_at FROM settings WHERE key = ?", (DB_SCHEMA_VERSION_KEY,)
+            "SELECT value, updated_at FROM settings WHERE key = ?",
+            (DB_SCHEMA_VERSION_KEY,),
         ).fetchone()
         schema_version = int(schema_version_row["value"]) if schema_version_row else 0
 
@@ -203,14 +211,19 @@ def api_system_upgrade_status() -> Any:
 
     conn = create_sqlite_connection()
     try:
-        row = conn.execute("SELECT value, updated_at FROM settings WHERE key = ?", (DB_SCHEMA_VERSION_KEY,)).fetchone()
+        row = conn.execute(
+            "SELECT value, updated_at FROM settings WHERE key = ?",
+            (DB_SCHEMA_VERSION_KEY,),
+        ).fetchone()
         schema_version = int(row["value"]) if row and row["value"] is not None else 0
 
         last_trace_row = conn.execute(
-            "SELECT value FROM settings WHERE key = ?", (DB_SCHEMA_LAST_UPGRADE_TRACE_ID_KEY,)
+            "SELECT value FROM settings WHERE key = ?",
+            (DB_SCHEMA_LAST_UPGRADE_TRACE_ID_KEY,),
         ).fetchone()
         last_error_row = conn.execute(
-            "SELECT value FROM settings WHERE key = ?", (DB_SCHEMA_LAST_UPGRADE_ERROR_KEY,)
+            "SELECT value FROM settings WHERE key = ?",
+            (DB_SCHEMA_LAST_UPGRADE_ERROR_KEY,),
         ).fetchone()
 
         last_migration = None
@@ -239,8 +252,12 @@ def api_system_upgrade_status() -> Any:
                     "schema_version": schema_version,
                     "target_version": DB_SCHEMA_VERSION,
                     "up_to_date": schema_version >= DB_SCHEMA_VERSION,
-                    "last_upgrade_trace_id": (last_trace_row["value"] if last_trace_row else ""),
-                    "last_upgrade_error": (last_error_row["value"] if last_error_row else ""),
+                    "last_upgrade_trace_id": (
+                        last_trace_row["value"] if last_trace_row else ""
+                    ),
+                    "last_upgrade_error": (
+                        last_error_row["value"] if last_error_row else ""
+                    ),
                     "last_migration": last_migration,
                     "backup_hint": backup_hint,
                 },
@@ -272,7 +289,9 @@ def api_external_health() -> Any:
         }
         if db_ok:
             try:
-                probe_summary = external_api_service.probe_instance_upstream(cache_ttl_seconds=60)
+                probe_summary = external_api_service.probe_instance_upstream(
+                    cache_ttl_seconds=60
+                )
             except Exception:
                 probe_summary = {
                     "upstream_probe_ok": False,
@@ -364,7 +383,9 @@ def api_external_account_status() -> Any:
             status="error",
             details={"code": "INVALID_PARAM"},
         )
-        return jsonify(external_api_service.fail("INVALID_PARAM", "email 参数不合法")), 400
+        return jsonify(
+            external_api_service.fail("INVALID_PARAM", "email 参数不合法")
+        ), 400
     try:
         external_api_service.ensure_external_email_scope(email_addr)
     except external_api_service.ExternalApiError as exc:
@@ -375,7 +396,9 @@ def api_external_account_status() -> Any:
             status="error",
             details={"code": exc.code},
         )
-        return jsonify(external_api_service.fail(exc.code, exc.message, data=exc.data)), exc.status
+        return jsonify(
+            external_api_service.fail(exc.code, exc.message, data=exc.data)
+        ), exc.status
 
     account = accounts_repo.get_account_by_email(email_addr)
     if not account:
@@ -386,7 +409,11 @@ def api_external_account_status() -> Any:
             status="error",
             details={"code": "ACCOUNT_NOT_FOUND"},
         )
-        return jsonify(external_api_service.fail("ACCOUNT_NOT_FOUND", "账号不存在", data={"email": email_addr})), 404
+        return jsonify(
+            external_api_service.fail(
+                "ACCOUNT_NOT_FOUND", "账号不存在", data={"email": email_addr}
+            )
+        ), 404
 
     account_type = (account.get("account_type") or "outlook").strip().lower()
     provider = (account.get("provider") or account_type or "outlook").strip().lower()
@@ -398,6 +425,7 @@ def api_external_account_status() -> Any:
         "exists": True,
         "account_type": account_type,
         "provider": provider,
+        "email_domain": account.get("email_domain") or "",
         "group_id": account.get("group_id"),
         "status": account.get("status"),
         "last_refresh_at": account.get("last_refresh_at"),

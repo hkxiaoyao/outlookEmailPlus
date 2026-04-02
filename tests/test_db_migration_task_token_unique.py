@@ -108,7 +108,7 @@ class DbMigrationTaskTokenUniqueTests(unittest.TestCase):
                     "SELECT value FROM settings WHERE key = 'db_schema_version'"
                 ).fetchone()
                 self.assertIsNotNone(version_row)
-                self.assertEqual(str(version_row[0]), "16")
+                self.assertEqual(str(version_row[0]), "17")
 
                 idx_row = conn.execute(
                     "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_temp_emails_task_token_unique'"

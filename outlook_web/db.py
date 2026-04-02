@@ -30,7 +30,8 @@ from outlook_web.security.crypto import (
 # v14：PRD-00011 V1.91 — accounts 表新增简洁模式摘要字段，/api/accounts 只读持久化摘要
 # v15：2026-03-26 临时邮箱能力正式化 — temp_emails 扩展字段、temp_email_messages 复合唯一、temp_mail_* 设置项
 # v16：2026-03-28 patch — 修补 idx_temp_emails_task_token_unique 唯一索引（v15 旧库迁移代码未包含该索引，导致老库升级后缺失）
-DB_SCHEMA_VERSION = 16
+# v17：2026-04-02 project-scoped pool reuse — accounts 表新增 email_domain 列，account_project_usage 表（project_key 防同项目重复领取），external_probe_cache 表新增 baseline_timestamp 列
+DB_SCHEMA_VERSION = 17
 DB_SCHEMA_VERSION_KEY = "db_schema_version"
 DB_SCHEMA_LAST_UPGRADE_TRACE_ID_KEY = "db_schema_last_upgrade_trace_id"
 DB_SCHEMA_LAST_UPGRADE_ERROR_KEY = "db_schema_last_upgrade_error"
@@ -1040,6 +1041,54 @@ def init_db(database_path: Optional[str] = None):
         cursor.execute(
             "INSERT OR IGNORE INTO settings (key, value) VALUES ('pool_default_lease_seconds', '600')"
         )
+
+        # v17: project-scoped pool reuse — email_domain 列 + account_project_usage 表
+        cursor.execute("PRAGMA table_info(accounts)")
+        accounts_columns_v17 = [col[1] for col in cursor.fetchall()]
+        if "email_domain" not in accounts_columns_v17:
+            cursor.execute(
+                "ALTER TABLE accounts ADD COLUMN email_domain TEXT DEFAULT NULL"
+            )
+        # 回填 email_domain（从 email 列提取域名部分）
+        cursor.execute("""
+            UPDATE accounts
+            SET email_domain = LOWER(SUBSTR(email, INSTR(email, '@') + 1))
+            WHERE (email_domain IS NULL OR TRIM(email_domain) = '')
+              AND INSTR(email, '@') > 1
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_accounts_email_domain
+            ON accounts(email_domain COLLATE NOCASE)
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS account_project_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id INTEGER NOT NULL,
+                consumer_key TEXT NOT NULL,
+                project_key TEXT NOT NULL,
+                first_claimed_at TEXT NOT NULL,
+                last_claimed_at TEXT NOT NULL,
+                UNIQUE(account_id, consumer_key, project_key),
+                FOREIGN KEY (account_id) REFERENCES accounts(id)
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_account_project_usage_lookup
+            ON account_project_usage(consumer_key, project_key)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_account_project_usage_account_id
+            ON account_project_usage(account_id)
+        """)
+
+        # v17: 给 external_probe_cache 加 baseline_timestamp 列（PR#27 probe 与 claim 关联）
+        cursor.execute("PRAGMA table_info(external_probe_cache)")
+        probe_columns_v17 = [col[1] for col in cursor.fetchall()]
+        if "baseline_timestamp" not in probe_columns_v17:
+            cursor.execute(
+                "ALTER TABLE external_probe_cache ADD COLUMN baseline_timestamp INTEGER DEFAULT NULL"
+            )
 
         # 迁移现有明文数据为加密数据
         migrate_sensitive_data(conn)

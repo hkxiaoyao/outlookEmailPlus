@@ -630,6 +630,7 @@ def filter_messages(
     from_contains: str = "",
     subject_contains: str = "",
     since_minutes: Optional[int] = None,
+    baseline_timestamp: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     from_contains = (from_contains or "").strip().lower()
     subject_contains = (subject_contains or "").strip().lower()
@@ -659,6 +660,11 @@ def filter_messages(
             if dt and dt < since_dt:
                 continue
 
+        # PR#27: claim_token baseline 过滤——只保留 claimed_at 之后的邮件
+        if baseline_timestamp is not None and baseline_timestamp > 0:
+            if int(e.get("timestamp") or 0) < baseline_timestamp:
+                continue
+
         filtered.append(e)
     return filtered
 
@@ -670,6 +676,7 @@ def get_latest_message_for_external(
     from_contains: str = "",
     subject_contains: str = "",
     since_minutes: Optional[int] = None,
+    baseline_timestamp: Optional[int] = None,
 ) -> Dict[str, Any]:
     emails = list_messages_for_external(
         email_addr=email_addr, folder=folder, skip=0, top=20
@@ -679,6 +686,7 @@ def get_latest_message_for_external(
         from_contains=from_contains,
         subject_contains=subject_contains,
         since_minutes=since_minutes,
+        baseline_timestamp=baseline_timestamp,
     )
     if not filtered:
         raise MailNotFoundError("未找到匹配邮件", data={"email": email_addr})
@@ -874,6 +882,7 @@ def get_verification_result(
     code_regex: str | None = None,
     code_length: str | None = None,
     code_source: str = "all",
+    baseline_timestamp: Optional[int] = None,
 ) -> Dict[str, Any]:
     latest_summary = get_latest_message_for_external(
         email_addr=email_addr,
@@ -881,6 +890,7 @@ def get_verification_result(
         from_contains=from_contains,
         subject_contains=subject_contains,
         since_minutes=since_minutes,
+        baseline_timestamp=baseline_timestamp,
     )
     message_id = str(latest_summary.get("id") or "")
     method = str(latest_summary.get("method") or "")
@@ -940,6 +950,7 @@ def wait_for_message(
     from_contains: str = "",
     subject_contains: str = "",
     since_minutes: Optional[int] = None,
+    baseline_timestamp: Optional[int] = None,
 ) -> Dict[str, Any]:
     try:
         timeout_seconds = int(timeout_seconds)
@@ -954,10 +965,12 @@ def wait_for_message(
     if poll_interval <= 0 or poll_interval > timeout_seconds:
         raise InvalidParamError("poll_interval 参数无效")
 
-    # 记录进入等待接口时的时间戳，避免把请求开始前已存在的旧邮件误判成“新到达”。
+    # 记录进入等待接口时的时间戳，避免把请求开始前已存在的旧邮件误判成"新到达"。
+    # 如果调用方已通过 claim_token 传入 baseline_timestamp，优先使用（更早的基准）。
     if _can_check_external_access():
         ensure_external_email_access(email_addr)
-    baseline_timestamp = int(time.time())
+    if baseline_timestamp is None or baseline_timestamp <= 0:
+        baseline_timestamp = int(time.time())
     start = time.time()
     last_error: Optional[ExternalApiError] = None
     while True:
@@ -970,6 +983,7 @@ def wait_for_message(
                 from_contains=from_contains,
                 subject_contains=subject_contains,
                 since_minutes=since_minutes,
+                baseline_timestamp=baseline_timestamp,
             )
             if int(latest_message.get("timestamp") or 0) >= baseline_timestamp:
                 return latest_message
@@ -1017,6 +1031,7 @@ def create_probe(
     from_contains: str = "",
     subject_contains: str = "",
     since_minutes: Optional[int] = None,
+    baseline_timestamp: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     创建一个异步探测请求，后台 worker 会定期轮询直到匹配或超时。
@@ -1037,13 +1052,21 @@ def create_probe(
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(seconds=int(timeout_seconds))
 
+    # PR#27：若传入了 baseline_timestamp，使用它；否则使用 now 作为基准
+    effective_baseline = (
+        baseline_timestamp
+        if (baseline_timestamp and baseline_timestamp > 0)
+        else int(now.timestamp())
+    )
+
     db = get_db()
     db.execute(
         """
         INSERT INTO external_probe_cache
             (id, email_addr, folder, from_contains, subject_contains,
-             since_minutes, timeout_seconds, poll_interval, status, expires_at, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+             since_minutes, timeout_seconds, poll_interval, status, expires_at, created_at, updated_at,
+             baseline_timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
         """,
         (
             probe_id,
@@ -1057,6 +1080,7 @@ def create_probe(
             expires_at.isoformat(),
             now.isoformat(),
             now.isoformat(),
+            effective_baseline,
         ),
     )
     db.commit()
@@ -1066,6 +1090,7 @@ def create_probe(
         "status": "pending",
         "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
         "poll_url": f"/api/external/probe/{probe_id}",
+        "baseline_timestamp": effective_baseline,
     }
 
 
@@ -1161,6 +1186,14 @@ def _load_pending_probe_rows(db: Any, now: str, *, limit: int = 50) -> list[Any]
 
 
 def _get_probe_baseline_timestamp(row: Any) -> int:
+    # PR#27：若 probe 创建时传入了 baseline_timestamp（来自 claim_token），优先使用
+    try:
+        stored = row["baseline_timestamp"]
+        if stored is not None and int(stored) > 0:
+            return int(stored)
+    except (TypeError, KeyError, ValueError):
+        pass
+    # 回退：从 created_at 推算
     try:
         created_str = row["created_at"] or ""
         if created_str.endswith("Z"):
@@ -1272,6 +1305,100 @@ def cleanup_expired_probes(app: Any = None, max_age_minutes: int = 30) -> int:
     finally:
         if ctx is not None:
             ctx.pop()
+
+
+def claimed_at_to_timestamp(claimed_at: str) -> Optional[int]:
+    """将 claimed_at ISO string 转为 Unix timestamp（整数），解析失败返回 None。"""
+    if not claimed_at:
+        return None
+    try:
+        dt = _parse_datetime(claimed_at)
+        if dt:
+            return int(dt.timestamp())
+    except Exception:
+        pass
+    return None
+
+
+def resolve_external_mail_scope(
+    email_addr: Optional[str],
+    claim_token: Optional[str],
+    *,
+    allow_finished: bool = False,
+) -> tuple[str, Optional[int]]:
+    """
+    根据 email_addr 或 claim_token 确定目标邮箱地址和 baseline_timestamp。
+
+    返回 (email_addr, baseline_timestamp) 元组。
+    - 若提供 claim_token，从领取上下文获取 email 和 claimed_at 时间戳。
+    - claim_token 与 email_addr 若同时存在，claim_token 优先。
+    - claimed_at 作为邮件读取的 baseline（避免读到领取之前的旧邮件）。
+    """
+    from outlook_web.services.pool import get_claim_context
+
+    baseline: Optional[int] = None
+
+    if claim_token and claim_token.strip():
+        ctx = get_claim_context(claim_token=claim_token.strip())
+        if ctx is None:
+            raise InvalidParamError(
+                "claim_token 无效或已过期", data={"claim_token": claim_token}
+            )
+        resolved_email = ctx.get("email") or ""
+        if not resolved_email:
+            raise InvalidParamError("claim_token 对应账号无邮箱地址")
+        # 若 email_addr 也有值，校验一致性
+        if (
+            email_addr
+            and email_addr.strip()
+            and email_addr.strip().lower() != resolved_email.lower()
+        ):
+            raise InvalidParamError(
+                "claim_token 与 email 不一致",
+                data={"email": email_addr, "claim_token_email": resolved_email},
+            )
+        email_addr = resolved_email
+        baseline = claimed_at_to_timestamp(ctx.get("claimed_at") or "")
+
+    if not email_addr or "@" not in (email_addr or ""):
+        raise InvalidParamError("email 参数无效")
+
+    ensure_external_email_access(email_addr, allow_finished=allow_finished)
+    return email_addr, baseline
+
+
+def record_claim_read_context(
+    *,
+    claim_token: Optional[str],
+    email_addr: str,
+) -> None:
+    """
+    当通过 claim_token 读取邮件时，记录一条 read 日志（用于审计和 debug）。
+    若无 claim_token 则静默跳过。
+    """
+    if not claim_token or not claim_token.strip():
+        return
+    try:
+        from outlook_web.services.pool import (
+            get_claim_context,
+            append_claim_read_context,
+        )
+
+        ctx = get_claim_context(claim_token=claim_token.strip())
+        if ctx is None:
+            return
+        consumer = get_current_external_api_consumer() or {}
+        caller_id = str(consumer.get("consumer_key") or consumer.get("name") or "")
+        task_id = ""
+        append_claim_read_context(
+            account_id=ctx["account_id"],
+            claim_token=claim_token.strip(),
+            caller_id=caller_id,
+            task_id=task_id,
+            detail=f"read via external API, email={email_addr}",
+        )
+    except Exception:
+        pass
 
 
 def audit_external_api_access(

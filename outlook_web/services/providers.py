@@ -157,7 +157,60 @@ def get_imap_folder_candidates(provider: str, folder: str) -> List[str]:
     folder_key = (folder or "").strip().lower() or "inbox"
 
     folder_map = PROVIDER_FOLDER_MAP.get(provider_key, PROVIDER_FOLDER_MAP["_default"])
-    return folder_map.get(folder_key, PROVIDER_FOLDER_MAP["_default"].get(folder_key, ["INBOX"]))
+    return folder_map.get(
+        folder_key, PROVIDER_FOLDER_MAP["_default"].get(folder_key, ["INBOX"])
+    )
+
+
+# FD-00009 / PR#27：provider 家族域名（用于 email_domain 级别邮箱过滤）
+# 每个 provider 下列出所有常见公共域名；企业 onmicrosoft.com 通过前缀匹配额外处理。
+PROVIDER_FAMILY_DOMAINS: Dict[str, List[str]] = {
+    "outlook": ["outlook.com", "hotmail.com", "live.com", "live.cn"],
+    "gmail": ["gmail.com", "googlemail.com"],
+    "qq": ["qq.com", "foxmail.com"],
+    "163": ["163.com"],
+    "126": ["126.com"],
+    "yahoo": ["yahoo.com", "yahoo.co.jp", "yahoo.co.uk"],
+    "aliyun": ["aliyun.com", "alimail.com"],
+}
+
+
+def extract_email_domain(email: str) -> str:
+    """从邮箱地址提取域名部分（小写）。"""
+    if not email or "@" not in email:
+        return ""
+    return email.rsplit("@", 1)[-1].strip().lower()
+
+
+def normalize_email_domain(domain: str) -> str:
+    """规范化域名：去除空白、转小写。"""
+    return (domain or "").strip().lower()
+
+
+def provider_supports_email_domain(provider: str, email_domain: str) -> bool:
+    """
+    判断 provider 是否支持指定邮箱域名。
+
+    覆盖两种情况：
+    1. 公共域名：在 PROVIDER_FAMILY_DOMAINS 中直接命中。
+    2. 企业 Outlook 域名：outlook provider 下以 .onmicrosoft.com 结尾的域名。
+    """
+    provider = (provider or "").strip().lower()
+    domain = normalize_email_domain(email_domain)
+    if not provider or not domain:
+        return False
+    known = PROVIDER_FAMILY_DOMAINS.get(provider, [])
+    if domain in known:
+        return True
+    # 企业 Outlook 账号兜底
+    if provider == "outlook" and domain.endswith(".onmicrosoft.com"):
+        return True
+    return False
+
+
+def get_provider_domains(provider: str) -> List[str]:
+    """返回指定 provider 的已知公共域名列表（不含企业域名）。"""
+    return list(PROVIDER_FAMILY_DOMAINS.get((provider or "").strip().lower(), []))
 
 
 def get_provider_list() -> List[Dict[str, Any]]:
@@ -179,7 +232,9 @@ def get_provider_list() -> List[Dict[str, Any]]:
             {
                 "key": key,
                 "label": p.get("label", key),
-                "account_type": p.get("account_type", "imap" if key != "outlook" else "outlook"),
+                "account_type": p.get(
+                    "account_type", "imap" if key != "outlook" else "outlook"
+                ),
                 "note": p.get("note", ""),
             }
         )

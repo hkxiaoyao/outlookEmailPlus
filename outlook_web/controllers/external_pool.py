@@ -17,7 +17,9 @@ from outlook_web.services.pool import (
 )
 
 
-def _audit(endpoint: str, status: str, *, details: dict[str, Any], email_addr: str = "") -> None:
+def _audit(
+    endpoint: str, status: str, *, details: dict[str, Any], email_addr: str = ""
+) -> None:
     external_api_service.audit_external_api_access(
         action="external_api_access",
         email_addr=email_addr,
@@ -96,23 +98,34 @@ def api_external_pool_claim_random():
     caller_id = body.get("caller_id", "")
     task_id = body.get("task_id", "")
     provider = body.get("provider")
+    project_key = body.get("project_key")
+    email_domain = body.get("email_domain")
 
     try:
         account = claim_random(
             caller_id=caller_id,
             task_id=task_id,
             provider=provider,
+            project_key=project_key,
+            email_domain=email_domain,
         )
         data = {
             "account_id": account["id"],
             "email": account["email"],
+            "email_domain": account.get("email_domain") or "",
             "claim_token": account["claim_token"],
+            "claimed_at": account.get("claimed_at") or "",
             "lease_expires_at": account["lease_expires_at"],
         }
         _audit(
             endpoint,
             "ok",
-            details={"provider": provider or "", "account_id": data["account_id"]},
+            details={
+                "provider": provider or "",
+                "project_key": project_key or "",
+                "email_domain": email_domain or "",
+                "account_id": data["account_id"],
+            },
         )
         return jsonify(external_api_service.ok(data))
     except PoolServiceError as exc:
@@ -145,12 +158,16 @@ def api_external_pool_claim_release():
 
     if account_id is None:
         _audit(endpoint, "error", details={"code": "ACCOUNT_ID_MISSING"})
-        return jsonify(external_api_service.fail("ACCOUNT_ID_MISSING", "account_id 不能为空")), 400
+        return jsonify(
+            external_api_service.fail("ACCOUNT_ID_MISSING", "account_id 不能为空")
+        ), 400
     try:
         account_id = int(account_id)
     except (TypeError, ValueError):
         _audit(endpoint, "error", details={"code": "ACCOUNT_ID_INVALID"})
-        return jsonify(external_api_service.fail("ACCOUNT_ID_INVALID", "account_id 必须为整数")), 400
+        return jsonify(
+            external_api_service.fail("ACCOUNT_ID_INVALID", "account_id 必须为整数")
+        ), 400
 
     try:
         release_claim(
@@ -161,7 +178,11 @@ def api_external_pool_claim_release():
             reason=reason,
         )
         _audit(endpoint, "ok", details={"account_id": account_id})
-        return jsonify(external_api_service.ok({"account_id": account_id, "pool_status": "available"}))
+        return jsonify(
+            external_api_service.ok(
+                {"account_id": account_id, "pool_status": "available"}
+            )
+        )
     except PoolServiceError as exc:
         return _error_response(endpoint, exc)
     except Exception as exc:
@@ -193,12 +214,16 @@ def api_external_pool_claim_complete():
 
     if account_id is None:
         _audit(endpoint, "error", details={"code": "ACCOUNT_ID_MISSING"})
-        return jsonify(external_api_service.fail("ACCOUNT_ID_MISSING", "account_id 不能为空")), 400
+        return jsonify(
+            external_api_service.fail("ACCOUNT_ID_MISSING", "account_id 不能为空")
+        ), 400
     try:
         account_id = int(account_id)
     except (TypeError, ValueError):
         _audit(endpoint, "error", details={"code": "ACCOUNT_ID_INVALID"})
-        return jsonify(external_api_service.fail("ACCOUNT_ID_INVALID", "account_id 必须为整数")), 400
+        return jsonify(
+            external_api_service.fail("ACCOUNT_ID_INVALID", "account_id 必须为整数")
+        ), 400
 
     try:
         new_status = complete_claim(
@@ -218,7 +243,11 @@ def api_external_pool_claim_complete():
                 "pool_status": new_status,
             },
         )
-        return jsonify(external_api_service.ok({"account_id": account_id, "pool_status": new_status}))
+        return jsonify(
+            external_api_service.ok(
+                {"account_id": account_id, "pool_status": new_status}
+            )
+        )
     except PoolServiceError as exc:
         return _error_response(endpoint, exc)
     except Exception as exc:
