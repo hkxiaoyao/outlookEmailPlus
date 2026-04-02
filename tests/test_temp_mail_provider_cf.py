@@ -311,9 +311,12 @@ class CloudflareTempMailProviderTests(unittest.TestCase):
                 result = provider.create_mailbox()
 
         self.assertTrue(result["success"])
-        # 验证请求 payload 中 domain 为默认域名
+        # CF Worker /admin/new_address 不接受 domain 字段；
+        # 验证 payload 中有 name 字段（非空随机前缀），且不包含 domain 字段
         payload = post_mock.call_args[1]["json"]
-        self.assertEqual(payload["domain"], "cf-mail.example.com")
+        self.assertIn("name", payload)
+        self.assertTrue(len(payload["name"]) > 0)
+        self.assertNotIn("domain", payload)
 
     # ------------------------------------------------------------------
     # delete_mailbox
@@ -568,7 +571,9 @@ class CloudflareTempMailProviderTests(unittest.TestCase):
 
         self.assertTrue(result)
         call_url = del_mock.call_args[0][0]
-        self.assertTrue(call_url.endswith("/mails"))
+        # clear_messages 改为 DELETE /admin/clear_inbox/{address_id}
+        self.assertIn("/admin/clear_inbox/", call_url)
+        self.assertTrue(call_url.endswith("addr-123"))
 
     def test_clear_messages_returns_false_when_no_jwt(self):
         with self.app.app_context():
