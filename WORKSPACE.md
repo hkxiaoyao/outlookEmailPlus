@@ -554,6 +554,15 @@ docker rm -f oep-e2e-test
 -p/
 ```
 
+**执行结果**（Commit: `04824bc`）：
+- ✅ 删除 `fix_format.py`
+- ✅ 移动 `注册与邮箱池接口文档.md` → `docs/API/`
+- ✅ 移动 `registration-mail-pool-api.en.md` → `docs/API/`
+- ✅ 移动 `VERIFICATION_PROMPT.md` → `docs/DEV/`
+- ✅ 移动 `设置页面重构-AI执行提示词.md` → `docs/DEV/`
+- ✅ `.gitignore` 补充 `.ruff_cache/` 和 `-p/`
+- 注：`NUL`、`-p/`、`.ruff_cache/`、`Ehushaokang...server.log` 已在 .gitignore 中，物理文件已被清理
+
 ---
 
 ### 当前未提交修改（A2 方案 + 文档更新）

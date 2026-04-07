@@ -69,6 +69,12 @@ Thumbs.db
 cf-deploy/
 .wrangler/
 
+# Linter 缓存
+.ruff_cache/
+
+# 空目录占位
+-p/
+
 # Windows 特殊文件
 NUL
 
