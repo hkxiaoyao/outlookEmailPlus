@@ -577,6 +577,35 @@ def _trigger_docker_api_update() -> Any:
         if not target_id:
             return jsonify({"success": False, "message": "无法获取当前容器 ID"}), 500
 
+        # 安全：API 层也做镜像白名单/本地构建拦截（策略A），避免等到 spawn 内部才失败。
+        try:
+            cinfo = docker_update.get_container_info(target_id)
+            if not cinfo:
+                return (
+                    jsonify({"success": False, "message": "无法获取目标容器信息"}),
+                    500,
+                )
+
+            image_ref = str(cinfo.get("image") or "").strip()
+            image_id = str(cinfo.get("image_id") or "").strip()
+            ok_img, img_msg = docker_update.validate_image_for_update(
+                image_ref,
+                image_id=image_id,
+            )
+            if not ok_img:
+                return jsonify({"success": False, "message": img_msg}), 403
+        except Exception:
+            # 校验异常：不放行（宁可阻止也不冒险更新到未知镜像）
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "镜像安全校验失败，已阻止更新请求（请检查部署镜像与 docker 权限）",
+                    }
+                ),
+                500,
+            )
+
         ok, msg = docker_update.spawn_update_helper_container(
             target_id,
             remove_old=remove_old,
@@ -637,22 +666,21 @@ def api_deployment_info() -> Any:
     }
 
     # 1. 检测镜像信息
-    # 优先策略：
-    # - 若已挂载 docker.sock（常见于 Docker API 更新模式），可直接通过 Docker API 获取真实镜像名
+    # 优先策略（展示用途）：
+    # - 只要 docker.sock 可用，就优先通过 Docker API 获取真实镜像名（不依赖 DOCKER_SELF_UPDATE_ALLOW）
     # - 否则回退到环境变量 DOCKER_IMAGE（可选）
     # - 再回退到 cgroup 近似判断
     image_name = os.getenv("DOCKER_IMAGE", "").strip()
 
-    # 尝试通过 Docker API 获取镜像名（更准确）
+    # 尝试通过 Docker API 获取镜像名（更准确；仅用于展示/提示）
     try:
         from outlook_web.services import docker_update
 
-        if docker_update.is_docker_api_enabled():
-            socket_ok, _ = docker_update.check_docker_socket()
-            if socket_ok:
-                cinfo = docker_update.get_current_container_info()
-                if cinfo and cinfo.get("image"):
-                    image_name = str(cinfo.get("image") or "").strip() or image_name
+        socket_ok, _ = docker_update.check_docker_socket()
+        if socket_ok:
+            cinfo = docker_update.get_current_container_info()
+            if cinfo and cinfo.get("image"):
+                image_name = str(cinfo.get("image") or "").strip() or image_name
     except Exception:
         pass
 

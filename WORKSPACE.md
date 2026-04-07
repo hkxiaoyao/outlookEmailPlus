@@ -8,6 +8,75 @@
 
 ### 操作记录
 
+#### 7. Docker API 自更新安全策略强化（策略A）
+
+**时间**：2026-04-07 下午
+
+**背景**：原有 Docker API 自更新功能存在安全隐患——本地构建镜像可能误触发更新，导致不可预期的行为。
+
+**目标**：实施策略A（彻底禁止本地构建镜像触发 Docker API 更新），确保只有官方远程镜像才能触发更新。
+
+**实施内容**：
+
+1. **镜像白名单收紧**：
+   - 移除 `outlook-email-plus`（无 namespace）白名单项
+   - 仅保留 `guangshanshui/outlook-email-plus`官方镜像前缀
+   
+2. **新增本地构建检测**：
+   - `validate_image_for_update()`：镜像白名单 + RepoDigests 检测双重校验
+   - `_looks_like_local_image_ref()`：基于 namespace 的启发式本地镜像检测（修复 bug：改为 namespace 白名单判断）
+   - `_has_repo_digests()`：通过 Docker API 检查镜像 RepoDigests（本地 build 镜像为空）
+   
+3. **API 层前置校验**：
+   - `_trigger_docker_api_update()` 在触发阶段就获取容器镜像并校验
+   - 校验失败返回 403/500，避免等到 spawn updater 内部才失败
+   
+4. **部署信息展示优化**：
+   - `api_deployment_info()` 不再依赖 `DOCKER_SELF_UPDATE_ALLOW` 环境变量
+   - 只要 docker.sock 可用就通过 Docker API 获取真实镜像名（更准确）
+   
+5. **测试用例调整**：
+   - `docker-compose.docker-api-test.yml` 镜像改为 `guangshanshui/outlook-email-plus:latest`（形成负向用例：本地 build 但伪装官方名也会被 RepoDigests 检测拦截）
+
+**修改文件**：
+- `outlook_web/services/docker_update.py`：
+  - 白名单收紧
+  - 新增 `validate_image_for_update()`, `_looks_like_local_image_ref()`, `_has_repo_digests()`
+  - `get_container_info()` 通过 `client.images.get()` 获取 RepoDigests
+  - `spawn_update_helper_container()` 和 `self_update()` 调用新校验函数
+  - Bug修复：`_looks_like_local_image_ref()` 改为 namespace 白名单判断（`guangshanshui`, `docker.io/guangshanshui`, `ghcr.io/guangshanshui`）
+- `outlook_web/controllers/system.py`：
+  - `_trigger_docker_api_update()` API 层镜像校验
+  - `api_deployment_info()` 获取镜像名逻辑优化
+- `docker-compose.docker-api-test.yml`：测试镜像名调整
+
+**代码逻辑测试结果**（PowerShell环境）：
+```
+=== 白名单校验 ===
+guangshanshui/outlook-email-plus:latest  → ✅ 通过
+guangshanshui/outlook-email-plus:test    → ✅ 通过
+outlook-email-plus:latest                → ❌ 拦截（无 namespace）
+myregistry/outlook-email-plus:latest     → ❌ 拦截（非官方 namespace）
+
+=== 启发式检测 ===
+guangshanshui/outlook-email-plus:*       → False（正确识别为官方）
+outlook-email-plus:*                     → True（正确识别为本地）
+其他namespace/*                          → True（正确识别为非官方）
+```
+
+**文档产出**：
+- `docs/DEV/manual-acceptance-checklist.md`：人工验收清单（4 个测试用例 + 验收标准 + 快速测试脚本）
+
+**待验收项**：
+- [ ] 负向用例1：本地构建镜像触发更新被拦截
+- [ ] 负向用例2：本地构建伪装官方名触发更新被拦截
+- [ ] 正向用例3：官方远程镜像成功触发更新流程
+- [ ] 部署信息准确性验证
+
+**关联 Issue/PR**：待 Docker 容器内实际验收通过后提交
+
+---
+
 #### 1. mystatus 插件状态确认
 
 **背景**：尝试使用 `mystatus` 工具查询 AI 账户配额使用情况。

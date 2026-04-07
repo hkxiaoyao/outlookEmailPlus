@@ -9,7 +9,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: outlook-email-a2-test:latest
+    # 策略A：禁止本地 build 镜像触发更新。
+    # 本测试镜像需要模拟“远程官方镜像引用”，否则会被白名单/本地构建策略拦截。
+    image: guangshanshui/outlook-email-plus:latest
     container_name: outlook-dockerapi-test
     ports:
       - "5003:5000"

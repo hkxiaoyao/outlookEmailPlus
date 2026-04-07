@@ -23,10 +23,101 @@ from typing import Dict, Any, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 # 允许自动更新的镜像白名单
+#
+# 策略A（生产安全）：彻底禁止本地构建镜像触发 Docker API 更新。
+# 因此白名单仅允许官方远程镜像前缀，不再放行本地/无 namespace 的镜像名。
 ALLOWED_IMAGE_PREFIXES = [
     "guangshanshui/outlook-email-plus",
-    "outlook-email-plus",  # 兼容本地构建
 ]
+
+
+def _looks_like_local_image_ref(image_ref: str) -> bool:
+    """基于镜像引用字符串的"本地构建"启发式判断。
+
+    说明：该判断用于给出更明确的错误提示。
+    真正的"彻底禁止本地构建"还会结合 RepoDigests 检测（若 docker 可用）。
+    """
+    ref = (image_ref or "").strip()
+    if not ref:
+        return True
+
+    lower_ref = ref.lower()
+
+    # 无 namespace（如 outlook-email-plus:latest）通常是本地构建或会落到 Docker Hub library
+    # 官方镜像应包含 namespace：guangshanshui/outlook-email-plus
+    if "/" not in ref:
+        return True
+
+    # 常见本地构建/测试 tag（需排除官方镜像）
+    # 注意：官方镜像可能使用 guangshanshui/outlook-email-plus:test 等 tag，不能简单检测 test 关键字
+    # 改为：只检测明确的本地构建模式（无 namespace 或非官方 namespace）
+
+    # 提取 namespace（如 guangshanshui）
+    namespace = ref.split("/")[0] if "/" in ref else ""
+
+    # 如果是官方 namespace，不视为本地构建
+    if namespace in [
+        "guangshanshui",
+        "docker.io/guangshanshui",
+        "ghcr.io/guangshanshui",
+    ]:
+        return False
+
+    # 其他情况（非官方 namespace 或无 namespace）视为本地构建
+    return True
+
+
+def _has_repo_digests(image_id: str) -> Optional[bool]:
+    """检查镜像是否具有 RepoDigests。
+
+    - pulled 远程镜像通常会有 RepoDigests
+    - 本地 build 的镜像通常 RepoDigests 为空
+
+    Returns:
+        True/False: 能确定时返回
+        None: 无法判断（例如 docker 不可用/异常）
+    """
+    if not image_id:
+        return None
+    try:
+        import docker
+
+        client = docker.from_env()
+        img = client.images.get(image_id)
+        repo_digests = (img.attrs or {}).get("RepoDigests") or []
+        return bool(repo_digests)
+    except Exception:
+        return None
+
+
+def validate_image_for_update(
+    image_ref: str, *, image_id: Optional[str] = None
+) -> Tuple[bool, str]:
+    """用于“触发更新”链路的镜像校验。
+
+    目标：
+    1) 镜像名必须在白名单内
+    2) 策略A：禁止本地构建镜像触发更新（尽可能在触发阶段就返回明确错误）
+    """
+    ok, msg = validate_image_name(image_ref)
+    if not ok:
+        # 额外：若看起来像本地镜像名，给出更明确的提示
+        if _looks_like_local_image_ref(image_ref):
+            return (
+                False,
+                f"检测到本地构建/非官方镜像（{image_ref}），已按安全策略禁止 Docker API 一键更新。请使用官方远程镜像部署（如 guangshanshui/outlook-email-plus:latest）。",
+            )
+        return ok, msg
+
+    # 彻底禁止本地 build：若能通过 RepoDigests 判断，则强制要求存在 RepoDigests
+    has_digests = _has_repo_digests(image_id or "")
+    if has_digests is False:
+        return (
+            False,
+            "检测到本地构建镜像（RepoDigests 为空），已按安全策略禁止 Docker API 一键更新。请改用远程镜像部署后再更新。",
+        )
+
+    return True, "镜像校验通过"
 
 
 def is_docker_api_enabled() -> bool:
@@ -163,12 +254,22 @@ def get_container_info(container_id_or_name: str) -> Optional[Dict[str, Any]]:
         except Exception:
             pass
 
+        # pulled 镜像通常具有 RepoDigests；本地 build 通常为空。
+        # 注意：容器 inspect 里通常拿不到 RepoDigests，需要通过 image inspect 获取。
+        image_repo_digests: list[str] = []
+        try:
+            img = client.images.get(inspect_data.get("Image", ""))
+            image_repo_digests = (img.attrs or {}).get("RepoDigests") or []
+        except Exception:
+            image_repo_digests = []
+
         return {
             "id": container.id,
             "short_id": container.short_id,
             "name": container.name,
             "image": config.get("Image", ""),
             "image_id": inspect_data.get("Image", ""),
+            "image_repo_digests": image_repo_digests,
             "labels": config.get("Labels", {}),
             "env": config.get("Env", []),
             "volumes": volume_specs,
@@ -270,7 +371,10 @@ def spawn_update_helper_container(
         if not target_image:
             return False, "无法获取目标容器镜像信息"
 
-        valid, msg = validate_image_name(target_image)
+        valid, msg = validate_image_for_update(
+            target_image,
+            image_id=(target.attrs.get("Image", "") if target.attrs else ""),
+        )
         if not valid:
             return False, msg
 
@@ -764,9 +868,12 @@ def self_update(
         }
     )
 
-    # Step 4: 验证镜像名白名单
+    # Step 4: 验证镜像名白名单 + 禁止本地构建镜像触发更新（策略A）
     current_image = current_container["image"]
-    valid_image, validate_msg = validate_image_name(current_image)
+    valid_image, validate_msg = validate_image_for_update(
+        current_image,
+        image_id=(current_container.get("image_id") or ""),
+    )
     steps.append(
         {
             "step": "validate_image",

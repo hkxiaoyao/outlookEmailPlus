@@ -175,7 +175,7 @@ docker-compose.yml           # app + watchtower 两个服务
 
 ---
 
-### ✅ Phase 4: A2 方案 — 按需 helper job 容器（dev 分支，未提交）
+### ✅ Phase 4: A2 方案 — 按需 helper job 容器（dev 分支，Commit: 待提交）
 
 **背景**：Phase 3 的 Docker API 自更新实测发现"自杀问题"——容器在内部 stop 自己后，后台线程也被杀死，后续 create/rename/cleanup 步骤无法完成。
 
@@ -198,6 +198,44 @@ docker-compose.yml           # app + watchtower 两个服务
 | `tests/test_error_and_trace.py` | 适配 healthz 新字段 |
 | `tests/test_smoke_contract.py` | 适配 healthz 新字段 |
 | `docker-compose.docker-api-test.yml` | **新增** Docker API 测试 compose |
+
+---
+
+### ✅ Phase 5: 安全策略强化（策略A — 禁止本地构建镜像触发更新）
+
+**时间**：2026-04-07
+
+**目标**：彻底禁止本地构建镜像触发 Docker API 更新，仅允许官方远程镜像更新。
+
+**实施内容**：
+
+1. **镜像白名单收紧**：
+   - 移除 `outlook-email-plus`（无 namespace）白名单项
+   - 仅保留 `guangshanshui/outlook-email-plus` 官方镜像前缀
+
+2. **新增本地构建检测**：
+   - `validate_image_for_update()`：镜像白名单 + RepoDigests 检测双重校验
+   - `_looks_like_local_image_ref()`：基于 namespace 的启发式本地镜像检测
+   - `_has_repo_digests()`：通过 Docker API 检查镜像 RepoDigests（本地 build 镜像为空）
+
+3. **API 层前置校验**：
+   - `_trigger_docker_api_update()` 在触发阶段提前获取容器镜像并校验
+   - 校验失败返回 403/500，避免等到 spawn updater 内部才失败
+
+4. **部署信息展示优化**：
+   - `api_deployment_info()` 不再依赖 `DOCKER_SELF_UPDATE_ALLOW` 环境变量
+   - 只要 docker.sock 可用就通过 Docker API 获取真实镜像名
+
+**修改文件**：
+
+| 文件 | 改动 |
+|------|------|
+| `outlook_web/services/docker_update.py` | 白名单收紧；新增 `validate_image_for_update()`, `_looks_like_local_image_ref()`, `_has_repo_digests()`；`get_container_info()` 获取 RepoDigests；`spawn_update_helper_container()` 和 `self_update()` 调用新校验函数；**Bug修复**：`_looks_like_local_image_ref()` 改为 namespace 白名单判断 |
+| `outlook_web/controllers/system.py` | `_trigger_docker_api_update()` API 层镜像校验；`api_deployment_info()` 获取镜像名逻辑优化 |
+| `docker-compose.docker-api-test.yml` | 镜像名改为 `guangshanshui/outlook-email-plus:latest`（形成负向用例） |
+| `docs/DEV/manual-acceptance-checklist.md` | **新增**：人工验收清单（4 个测试用例 + 验收标准 + 快速测试脚本） |
+
+**验收状态**：待 Docker 容器内实际测试
 
 ---
 
