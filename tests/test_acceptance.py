@@ -5,7 +5,13 @@
 import json
 import sys
 
-from playwright.sync_api import sync_playwright
+try:
+    from playwright.sync_api import sync_playwright
+
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    sync_playwright = None  # type: ignore
+    PLAYWRIGHT_AVAILABLE = False
 
 BASE = "http://127.0.0.1:5000"
 PASSWORD = "admin123"
