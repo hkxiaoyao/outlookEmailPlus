@@ -347,3 +347,7 @@ ALLOW_LOGIN_PASSWORD_CHANGE=false
 ## 许可证
 
 Apache License 2.0
+
+## 联系方式
+
+如果你在使用过程中遇到问题，或有合作意向，欢迎通过邮件联系：[outlookmailplus@163.com](mailto:outlookmailplus@163.com)

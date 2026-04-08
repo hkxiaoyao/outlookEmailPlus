@@ -342,3 +342,7 @@ It also draws ideas from:
 ## License
 
 Apache License 2.0
+
+## Contact
+
+For project-related issues or collaboration opportunities, feel free to reach out via email: [outlookmailplus@163.com](mailto:outlookmailplus@163.com)
